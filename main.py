@@ -403,7 +403,7 @@ function serializeContour(ents,dimW,dimH){
 
 function calcDims(d){
   if(d.konturas){
-    const m=d.konturas.match(/D:(\d+)x(\d+)/);
+    const m=d.konturas.match(/D:([0-9]+)x([0-9]+)/);
     if(m)return m[1]+'×'+m[2]+'mm';
     try{
       let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
@@ -449,7 +449,7 @@ function drawPrev(ents){
 function drawContourSvg(konturas,sizeMm=14){
   if(!konturas)return'';
   try{
-    const parts=konturas.replace(/^D:\d+x\d+\|/,'').split('|');
+    const parts=konturas.replace(/^D:[0-9]+x[0-9]+[|]/,'').split('|');
     let paths='';
     parts.forEach(p=>{
       if(p.startsWith('C')){const[cx,cy,r]=p.slice(1).split(',').map(Number);paths+=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#000" stroke-width="2"/>`;}
@@ -462,7 +462,8 @@ function drawContourSvg(konturas,sizeMm=14){
 
 """
 
-_MAINJS = """// SANDĖLIO SISTEMA – main.js
+_MAINJS = """
+// SANDĖLIO SISTEMA – main.js
 
 let lkOrders=[],lkF='all',lkLC=null,lkLT=0;
 let dxfOrders=[],dxfF='all',dxfDets=[],curOrd=null,curArea=0,curContour='';
@@ -568,7 +569,7 @@ function lkStats(){
   document.getElementById('lkBdg').textContent=p||t;
 }
 function lkFlt(f,b){lkF=f;document.querySelectorAll('.frow .fb').forEach(x=>x.classList.remove('active'));b.classList.add('active');rlkList();}
-function sortLk(l){return[...l].sort((a,b)=>{const n=s=>parseInt((s.match(/\d+/)||[0])[0]);return n(a.kodas)-n(b.kodas);});}
+function sortLk(l){return[...l].sort((a,b)=>{const n=s=>parseInt((s.match(/[0-9]+/)||[0])[0]);return n(a.kodas)-n(b.kodas);});}
 function rlkList(){
   const el=document.getElementById('lkList'),q=(document.getElementById('lkSrch').value||'').toLowerCase();
   let l=sortLk(lkOrders);
@@ -618,7 +619,7 @@ function rStock(){
   const sorted=[...stock].sort((a,b)=>a.storis-b.storis);
   el.innerHTML=sorted.map(r=>{
     const nc=r.likoVnt===0?'empty':r.likoVnt<=settings.lowAlert?'warn':'ok';
-    return`<div class="stk-row"><div><div class="stk-thick">${r.storis}<span>mm</span></div></div><div><div class="stk-dims">${r.matmenys}mm</div><div class="stk-sub">${r.pastabos||''}</div></div><div><div class="stk-num ${nc}">${r.likoVnt}</div><div class="stk-sub">vnt.</div></div><div><div class="stk-num" style="font-size:13px;color:var(--tx2)">${r.likoKg.toFixed(1)}</div><div class="stk-sub">kg</div></div><div><div class="stk-num" style="font-size:12px;color:var(--tx2)">${r.likoT.toFixed(3)}</div><div class="stk-sub">t</div></div><div><div class="stk-val">${r.verte.toFixed(2)}€</div><div class="stk-sub">${r.kainaKg>0?r.kainaKg+'€/t':''}</div></div><div class="stk-acts"><button class="btn btn-y btn-sm" onclick="showUse('${r.id}','${r.storis}mm ${r.matmenys}',${r.likoVnt})">−</button><button class="btn btn-d btn-sm" onclick="delStk('${r.id}')">✕</button></div></div>`;
+    return`<div class="stk-row"><div><div class="stk-thick">${r.storis}<span>mm</span></div></div><div><div class="stk-dims">${r.matmenys}mm</div><div class="stk-sub">${r.pastabos||''}</div></div><div><div class="stk-num ${nc}">${r.likoVnt}</div><div class="stk-sub">vnt.</div></div><div><div class="stk-num" style="font-size:13px;color:var(--tx2)">${r.likoKg.toFixed(1)}</div><div class="stk-sub">kg</div></div><div><div class="stk-num" style="font-size:12px;color:var(--tx2)">${r.likoT.toFixed(3)}</div><div class="stk-sub">t</div></div><div><div class="stk-val">${r.verte.toFixed(2)}€</div><div class="stk-sub">${r.kainaKg>0?r.kainaKg+'€/kg':''}</div></div><div class="stk-acts"><button class="btn btn-y btn-sm" onclick="showUse('${r.id}','${r.storis}mm ${r.matmenys}',${r.likoVnt})">−</button><button class="btn btn-d btn-sm" onclick="delStk('${r.id}')">✕</button></div></div>`;
   }).join('')+`<div class="stk-tot"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tx2);font-weight:700">VISO</div><div></div><div><div class="stk-num" style="font-size:13px;color:var(--ac)">${totVnt}</div><div class="stk-sub">vnt.</div></div><div><div class="stk-num" style="font-size:12px;color:var(--tx2)">${totKg.toFixed(1)}</div><div class="stk-sub">kg</div></div><div><div class="stk-num" style="font-size:13px;color:var(--gn);font-weight:800">${totT}</div><div class="stk-sub">t</div></div><div><div class="stk-val" style="font-size:13px;font-weight:800">${totVal.toFixed(2)}€</div></div><div></div></div>`;
 }
 
@@ -870,69 +871,13 @@ function printOrd(){
   document.getElementById('printMod').style.display='flex';
 }
 
-
-
-function genPdfReport(){
-  function sortByNum(arr){
-    return arr.slice().sort(function(a,b){
-      var na=parseInt((a.kodas.match(/\d+/g)||[]).join(''))||0;
-      var nb=parseInt((b.kodas.match(/\d+/g)||[]).join(''))||0;
-      return na-nb;
-    });
-  }
-  var surinkti = sortByNum(lkOrders.filter(function(o){return o.collected && !o.delivered;}));
-  var perduoti = sortByNum(lkOrders.filter(function(o){return o.delivered;}));
-  var laukia = sortByNum(lkOrders.filter(function(o){return !o.collected;}));
-  var now = new Date().toLocaleDateString('lt-LT') + ' ' + new Date().toTimeString().slice(0,5);
-  
-  function tableRows(arr, color){
-    if(!arr.length) return '<tr><td colspan="2" style="color:#aaa;padding:4px 8px">Tuscia</td></tr>';
-    return arr.map(function(o){
-      var t = (o.delivered ? o.deliveredAt : o.collected ? o.collectedAt : o.registered||'').slice(11,16);
-      return '<tr><td style="padding:4px 10px;border-bottom:1px solid #eee;font-family:monospace">'+o.kodas+'</td><td style="padding:4px 10px;border-bottom:1px solid #eee;color:'+color+'">'+t+'</td></tr>';
-    }).join('');
-  }
-  
-  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'
-    + 'body{font-family:Arial,sans-serif;margin:0;padding:12mm;font-size:10pt}'
-    + 'h1{font-size:16pt;font-weight:900;margin-bottom:2mm}'
-    + 'h2{font-size:11pt;font-weight:700;margin:6mm 0 2mm;padding:2mm 4mm;border-left:4px solid #0969da}'
-    + 'h2.g{border-left-color:#1a7f37}h2.b{border-left-color:#0969da}h2.y{border-left-color:#9a6700}'
-    + 'table{width:100%;border-collapse:collapse;margin-bottom:4mm}'
-    + 'th{background:#1e3a5f;color:white;padding:2mm 4mm;text-align:left;font-size:9pt}'
-    + 'td{padding:2mm 4mm;font-size:9pt}'
-    + '.sum{display:flex;gap:8mm;margin:4mm 0;padding:3mm;background:#f5f5f5}'
-    + '.sum-n{font-size:18pt;font-weight:900;font-family:monospace}'
-    + '.sum-l{font-size:8pt;color:#666;text-transform:uppercase}'
-    + '.foot{margin-top:8mm;font-size:8pt;color:#aaa;border-top:1px solid #ddd;padding-top:3mm}'
-    + '@page{margin:8mm;size:A4}'
-    + '</style></head><body>'
-    + '<h1>Sandelio ataskaita</h1>'
-    + '<div style="font-size:9pt;color:#666;margin-bottom:4mm">'+now+'</div>'
-    + '<div class="sum">'
-    + '<div><div class="sum-n" style="color:#1f2328">'+lkOrders.length+'</div><div class="sum-l">Is viso</div></div>'
-    + '<div><div class="sum-n" style="color:#1a7f37">'+surinkti.length+'</div><div class="sum-l">Surinkta</div></div>'
-    + '<div><div class="sum-n" style="color:#0969da">'+perduoti.length+'</div><div class="sum-l">Perduota</div></div>'
-    + '<div><div class="sum-n" style="color:#9a6700">'+laukia.length+'</div><div class="sum-l">Laukia</div></div>'
-    + '</div>'
-    + '<h2 class="g">Surinkta ('+surinkti.length+')</h2>'
-    + '<table><tr><th>Kodas</th><th>Laikas</th></tr>'+tableRows(surinkti,'#1a7f37')+'</table>'
-    + '<h2 class="b">Perduota ('+perduoti.length+')</h2>'
-    + '<table><tr><th>Kodas</th><th>Laikas</th></tr>'+tableRows(perduoti,'#0969da')+'</table>'
-    + '<h2 class="y">Laukia ('+laukia.length+')</h2>'
-    + '<table><tr><th>Kodas</th><th>Laikas</th></tr>'+tableRows(laukia,'#9a6700')+'</table>'
-    + '<div class="foot">Metalcraft – Sandelio sistema – '+now+'</div>'
-    + '</body></html>';
-  
-  var blob = new Blob([html], {type: 'text/html'});
-  var url = URL.createObjectURL(blob);
-  var a = document.createElement('a');
-  var now2 = new Date();
-  var fname = 'ataskaita_' + now2.toISOString().slice(0,10) + '.html';
-  a.href = url;
-  a.download = fname;
-  a.click();
-  setTimeout(function(){URL.revokeObjectURL(url);}, 1000);
+function dlPdf(){
+  const c=document.getElementById('printArea').innerHTML;
+  const w=window.open('','_blank');
+  const s='<style>body{font-family:Arial,sans-serif;margin:0;padding:10mm}.pph{display:flex;justify-content:space-between;margin-bottom:3mm;border-bottom:2px solid #000;padding-bottom:2mm}.pptitle{font-size:16pt;font-weight:900}.ppid{font-size:8pt;color:#666}.ppinfo{display:grid;grid-template-columns:1fr 1fr 1fr;gap:2mm;margin-bottom:3mm;background:#f5f5f5;padding:2.5mm}.ppi-l{font-size:7pt;color:#888;text-transform:uppercase}.ppi-v{font-size:10pt;font-weight:700}.pptable{width:100%;border-collapse:collapse;margin-bottom:3mm;font-size:8pt}.pptable th{background:#1e3a5f;color:white;padding:1.5mm 2mm;text-align:left;font-size:7pt;text-transform:uppercase}.pptable td{padding:1mm 2mm;border-bottom:1px solid #ddd}.ppsign{display:flex;gap:10mm;margin-top:4mm}.pss{border-top:1px solid #000;width:45mm;padding-top:2mm;font-size:7pt;color:#666}.ppfoot{display:flex;justify-content:space-between;font-size:7pt;color:#aaa;border-top:1px solid #ddd;padding-top:2mm;margin-top:3mm}@page{margin:6mm;size:A4}</style>';
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8">'+s+'</head><body>'+c+'</body>');
+  w.document.close();
+  setTimeout(function(){w.print();},500);
 }
 
 function nowS(){return new Date().toISOString().replace('T',' ').slice(0,19);}
@@ -941,30 +886,18 @@ function nowS(){return new Date().toISOString().replace('T',' ').slice(0,19);}
 const savedSett=localStorage.getItem('sandSettings');
 if(savedSett)try{settings=JSON.parse(savedSett);}catch(e){}
 
-function dlPdf(){
-  var c=document.getElementById('printArea').innerHTML;
-  var w=window.open('','_blank');
-  if(!w){alert('Leiskite popup langus!');return;}
-  w.document.open();
-  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;margin:0;padding:10mm}.pptable{width:100%;border-collapse:collapse;font-size:8pt}.pptable th{background:#1e3a5f;color:white;padding:2mm}.pptable td{padding:1mm 2mm;border-bottom:1px solid #ddd}.pph{display:flex;justify-content:space-between;margin-bottom:3mm;border-bottom:2px solid #000;padding-bottom:2mm}.pptitle{font-size:16pt;font-weight:900}.ppid{font-size:8pt;color:#666}.ppinfo{display:grid;grid-template-columns:1fr 1fr 1fr;gap:2mm;margin-bottom:3mm;background:#f5f5f5;padding:2.5mm}.ppi-l{font-size:7pt;color:#888;text-transform:uppercase}.ppi-v{font-size:10pt;font-weight:700}.ppsign{display:flex;gap:10mm;margin-top:4mm}.pss{border-top:1px solid #000;width:45mm;padding-top:2mm;font-size:7pt;color:#666}.ppfoot{display:flex;justify-content:space-between;font-size:7pt;color:#aaa;border-top:1px solid #ddd;padding-top:2mm;margin-top:3mm}@page{margin:6mm;size:A4}</style></head><body>'+c+'</body></html>');
-  w.document.close();
-  setTimeout(function(){w.print();},600);
+async function siustiEmail(){
+  const btn=document.getElementById('emailBtn');
+  btn.textContent='Siunčiama...';btn.disabled=true;
+  try{
+    const r=await fetch('/api/email/siusti',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    const d=await r.json();
+    if(d.success){alert('✓ '+d.message);}
+    else{alert('Klaida: '+(d.detail||d.message));}
+  }catch(e){alert('Klaida: '+e.message);}
+  btn.textContent='✉ Siųsti ataskaitą';btn.disabled=false;
 }
 
-async function siustiEmail(){
-  var btn=document.getElementById('emailBtn');
-  if(!btn)return;
-  btn.textContent='Siunčiama...';
-  btn.disabled=true;
-  try{
-    var r=await fetch('/api/email/siusti',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
-    var d=await r.json();
-    if(d.success){alert('Issiusta! '+d.message);}
-    else{alert('Klaida: '+(d.detail||d.message||'Nezinoma'));}
-  }catch(e){alert('Klaida: '+e.message);}
-  btn.textContent='Siusti ataskaita';
-  btn.disabled=false;
-}
 """
 
 _HTML = """<!DOCTYPE html>
