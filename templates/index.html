@@ -26,12 +26,28 @@
 </nav>
 
 <div class="view active" id="view-lk">
-  <div class="lk-wrap">
+  <div class="lk-wrap3">
+    <!-- KAIRE: Etapu sarasas -->
+    <div class="lk-etapai">
+      <div class="le-h">
+        <div class="le-t">Etapai</div>
+        <button class="btn btn-g btn-sm" onclick="loadEtapai()">&#x21BB;</button>
+      </div>
+      <div class="le-new">
+        <input type="text" id="newEtapasInp" placeholder="Naujas etapas..." style="flex:1">
+        <button class="btn btn-p btn-sm" onclick="newEtapas()">+</button>
+      </div>
+      <div id="etapaiList"><div class="empty-s" style="padding:20px;font-size:11px">Kraunama...</div></div>
+    </div>
+
+    <!-- VIDURYS: Skanavimas -->
     <div class="lk-main">
       <div class="card">
-        <div class="ct">Skanavimas</div>
+        <div class="ct">Skanavimas
+          <span id="aktyvusLabel" style="margin-left:8px;font-size:10px;color:var(--ac);font-weight:700"></span>
+        </div>
         <div class="scan-f"><span class="scan-ico">&#9638;</span><input class="scan-inp" id="scanInp" placeholder="Skanuok arba ivesk koda..." autocomplete="off" spellcheck="false"></div>
-        <div class="hint" id="scanHint">Laukiama skanavimo...</div>
+        <div class="hint" id="scanHint">Pasirink etapa kaireje...</div>
         <div class="steps"><div class="step s1"></div><div class="step s2"></div><div class="step s3"></div></div>
         <div class="step-lbl"><span>1x Registruota</span><span>2x Surinkta</span><span>3x Perduota</span></div>
       </div>
@@ -46,16 +62,13 @@
         <div class="pt"><span>Progresas</span><span class="pct" id="lkPct">0%</span></div>
         <div class="ptr"><div class="pfd" id="lkPfd" style="width:0%"></div><div class="pfc" id="lkPfc" style="width:0%"></div></div>
       </div>
-      <div class="stbar">
-        <span class="stbar-lbl">Naujas etapas:</span>
-        <input type="text" id="stageInp" placeholder="pvz. Etapas 221">
-        <button class="btn btn-p btn-sm" onclick="askStage()">Archyvuoti</button>
-      </div>
     </div>
+
+    <!-- DESINE: Lakstu sarasas -->
     <div class="lk-sb">
       <div class="sbh">
-        <div class="sbt">Uzsakymai</div>
-        <button class="btn btn-g btn-sm" onclick="loadLk()">&#x21BB;</button>
+        <div class="sbt" id="sbTitle">Uzsakymai</div>
+        <button class="btn btn-g btn-sm" onclick="loadCurEtapas()">&#x21BB;</button>
         <button id="pdfBtn" class="btn btn-s btn-sm" onclick="genPdfReport()" style="margin-left:4px">&#x2B50; PDF</button>
         <div class="sbsr"><span class="sbs-i">&#x2315;</span><input type="text" id="lkSrch" placeholder="Ieskoti..." oninput="rlkList()"></div>
       </div>
@@ -65,7 +78,10 @@
         <button class="fb" onclick="lkFlt('c',this)">Surinkti</button>
         <button class="fb" onclick="lkFlt('d',this)">Perduoti</button>
       </div>
-      <div class="olist" id="lkList"><div class="empty-s">Jungiamasi...</div></div>
+      <div class="olist" id="lkList"><div class="empty-s">Pasirink etapa...</div></div>
+      <div class="lk-arch-bar" id="archBar" style="display:none">
+        <button class="btn btn-y btn-sm" style="width:100%" onclick="archvuotiCur()">Archyvuoti si etapa</button>
+      </div>
     </div>
   </div>
 </div>
