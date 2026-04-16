@@ -1,3 +1,90 @@
+// ════ ETAPAI ════
+let etapai = [];
+let curEtapas = null; // null = be etapo, string = etapo pavadinimas
+
+async function loadEtapai(){
+  try{
+    const r = await api('GET', '/api/etapai/aktyvus');
+    etapai = r.etapai || [];
+    rEtapai();
+    // Jei turime aktyvų etapą - atnaujinti jo lakštus
+    if(curEtapas !== undefined) loadCurEtapas();
+  }catch(e){ toast('Klaida kraunant etapus', true); }
+}
+
+function rEtapai(){
+  const el = document.getElementById('etapaiList');
+  if(!etapai.length){
+    el.innerHTML = '<div class="empty-s" style="padding:20px;font-size:11px">Dar nera etapu</div>';
+    return;
+  }
+  el.innerHTML = etapai.map(e => {
+    const pct = e.total > 0 ? Math.round(e.surinkta/e.total*100) : 0;
+    const id = e.pavadinimas || '__be_etapo__';
+    const isActive = (curEtapas === e.pavadinimas) || (curEtapas === '__be_etapo__' && e.pavadinimas === null);
+    return `<div class="etapas-item ${isActive?'active':''}" onclick="selectEtapas('${id}', '${e.display}')">
+      <div class="ei-name">${e.display}</div>
+      <div class="ei-stats">${e.surinkta}/${e.total} surinkta</div>
+      <div class="ei-prog"><div class="ei-prog-f" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function selectEtapas(id, display){
+  curEtapas = id;
+  document.getElementById('aktyvusLabel').textContent = '→ ' + display;
+  document.getElementById('sbTitle').textContent = display;
+  document.getElementById('archBar').style.display = 'block';
+  document.getElementById('scanHint').textContent = 'Skanuok i: ' + display;
+  rEtapai();
+  loadCurEtapas();
+}
+
+async function loadCurEtapas(){
+  if(curEtapas === null || curEtapas === undefined) return;
+  try{
+    const r = await api('GET', '/api/etapai/lakstai/' + encodeURIComponent(curEtapas));
+    lkOrders = r.orders || [];
+    lkStats();
+    rlkList();
+  }catch(e){}
+}
+
+async function newEtapas(){
+  const inp = document.getElementById('newEtapasInp');
+  const name = inp.value.trim();
+  if(!name){ toast('Iveski pavadinima!', true); return; }
+  // Patikrinti ar jau egzistuoja
+  const exists = etapai.find(e => e.pavadinimas === name);
+  if(exists){ toast('Etapas jau egzistuoja!', true); return; }
+  inp.value = '';
+  // Sukurti lokaliai ir pasirinkti
+  etapai.push({pavadinimas: name, display: name, total: 0, surinkta: 0, perduota: 0, laukia: 0});
+  rEtapai();
+  selectEtapas(name, name);
+  toast('Etapas sukurtas: ' + name);
+}
+
+async function archvuotiCur(){
+  if(!curEtapas){ toast('Pasirink etapa!', true); return; }
+  const et = etapai.find(e => (e.pavadinimas || '__be_etapo__') === curEtapas);
+  const display = et ? et.display : curEtapas;
+  if(!confirm('Archyvuoti "' + display + '"?')) return;
+  const r = await api('POST', '/api/etapai/archyvuoti', {etapas: curEtapas === '__be_etapo__' ? null : curEtapas});
+  if(r.success){
+    toast('Archyvuota: ' + display);
+    curEtapas = null;
+    lkOrders = [];
+    lkStats();
+    rlkList();
+    document.getElementById('aktyvusLabel').textContent = '';
+    document.getElementById('sbTitle').textContent = 'Uzsakymai';
+    document.getElementById('archBar').style.display = 'none';
+    document.getElementById('scanHint').textContent = 'Pasirink etapa kaireje...';
+    loadEtapai();
+  }
+}
+
 // SANDĖLIO SISTEMA – main.js
 
 let lkOrders=[],lkF='all',lkLC=null,lkLT=0;
@@ -34,7 +121,7 @@ window.onload=()=>{
 document.addEventListener('click',e=>{if(actx&&actx.state==='suspended')actx.resume();if(document.getElementById('view-lk').classList.contains('active')&&!e.target.closest('input,button,select'))focusScan();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.mbg').forEach(m=>m.style.display='none');});
 
-async function loadAll(){await loadLk();await loadDxfOrds();await loadStock();await loadHist();await loadStages();}
+async function loadAll(){await loadEtapai();await loadDxfOrds();await loadStock();await loadHist();await loadStages();}
 
 // NAVIGACIJA
 function SW(v){
