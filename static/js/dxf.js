@@ -1,5 +1,5 @@
 // DXF PARSERIS
-const TANKIS = 8000;
+// TANKIS defined in HTML
 
 function thickFromName(name){
   const m=name.match(/[tT]-?([0-9]+(?:[.][0-9]+)?)[ ]*mm/)||name.match(/[tT]-?([0-9]+(?:[.][0-9]+)?)/)||name.match(/([0-9]+(?:[.][0-9]+)?)[ ]*mm/);
