@@ -1257,10 +1257,19 @@ async def siusti_email(db: Session = Depends(get_db)):
         msg["From"] = f"Metalcraft <{smtp_user}>"
         msg["To"] = gaivejas
         msg.attach(MIMEText(html_body, "html", "utf-8"))
-        with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as s:
-            s.starttls()
-            s.login(smtp_user, smtp_pass)
-            s.sendmail(smtp_user, gaivejas, msg.as_string())
+        # Bandome 587 su STARTTLS
+        try:
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=30) as s:
+                s.ehlo()
+                s.starttls()
+                s.ehlo()
+                s.login(smtp_user, smtp_pass)
+                s.sendmail(smtp_user, gaivejas, msg.as_string())
+        except Exception as e1:
+            # Bandome 465 su SSL
+            with smtplib.SMTP_SSL(smtp_host, 465, timeout=30) as s:
+                s.login(smtp_user, smtp_pass)
+                s.sendmail(smtp_user, gaivejas, msg.as_string())
         return {"success": True, "message": f"Issiusta i {gaivejas}"}
     except Exception as e:
         raise HTTPException(500, f"Klaida: {str(e)}")
