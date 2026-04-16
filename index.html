@@ -280,3 +280,301 @@ const TANKIS=8000;
 <script src="/static/js/main.js"></script>
 </body>
 </html>
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0969da">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Sandelis">
+<link rel="manifest" href="/manifest.json">
+<title>Sandelio Sistema</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+<nav>
+  <div class="brand"><div class="brand-ico"></div>SANDELIS</div>
+  <div class="tabs">
+    <button class="tab active" onclick="SW('lk')" id="tab-lk">Lakstai <span class="bdg" id="lkBdg">0</span></button>
+    <button class="tab" onclick="SW('stk')" id="tab-stk">Sandelis <span class="bdg y" id="stkBdg">0</span></button>
+    <button class="tab" onclick="SW('dxf')" id="tab-dxf">DXF <span class="bdg gray" id="dxfBdg">0</span></button>
+    <button class="tab" onclick="SW('arch')" id="tab-arch">Archyvai <span class="bdg gray" id="archBdg">0</span></button>
+    <button class="tab" onclick="SW('rep')" id="tab-rep">Ataskaita</button>
+  </div>
+  <div class="nav-r"><div class="dot ok" id="connDot"></div></div>
+</nav>
+
+<div class="view active" id="view-lk">
+  <div class="lk-wrap3">
+    <!-- KAIRE: Etapu sarasas -->
+    <div class="lk-etapai">
+      <div class="le-h">
+        <div class="le-t">Etapai</div>
+        <button class="btn btn-g btn-sm" onclick="loadEtapai()">&#x21BB;</button>
+      </div>
+      <div class="le-new">
+        <input type="text" id="newEtapasInp" placeholder="Naujas etapas..." style="flex:1">
+        <button class="btn btn-p btn-sm" onclick="newEtapas()">+</button>
+      </div>
+      <div id="etapaiList"><div class="empty-s" style="padding:20px;font-size:11px">Kraunama...</div></div>
+    </div>
+
+    <!-- VIDURYS: Skanavimas -->
+    <div class="lk-main">
+      <div class="card">
+        <div class="ct">Skanavimas
+          <span id="aktyvusLabel" style="margin-left:8px;font-size:10px;color:var(--ac);font-weight:700"></span>
+        </div>
+        <div class="scan-f"><span class="scan-ico">&#9638;</span><input class="scan-inp" id="scanInp" placeholder="Skanuok arba ivesk koda..." autocomplete="off" spellcheck="false"></div>
+        <div class="hint" id="scanHint">Pasirink etapa kaireje...</div>
+        <div class="steps"><div class="step s1"></div><div class="step s2"></div><div class="step s3"></div></div>
+        <div class="step-lbl"><span>1x Registruota</span><span>2x Surinkta</span><span>3x Perduota</span></div>
+      </div>
+      <div class="res" id="lkRes" style="display:none"><div class="rt" id="lkRt"></div><div class="rc" id="lkRc"></div><div class="rs" id="lkRs"></div></div>
+      <div class="stats-row">
+        <div class="stat"><div class="sn a" id="lkT">0</div><div class="sl">Is viso</div></div>
+        <div class="stat"><div class="sn g" id="lkC">0</div><div class="sl">Surinkta</div></div>
+        <div class="stat"><div class="sn b" id="lkD">0</div><div class="sl">Perduota</div></div>
+        <div class="stat"><div class="sn y" id="lkP">0</div><div class="sl">Laukia</div></div>
+      </div>
+      <div class="prog-card">
+        <div class="pt"><span>Progresas</span><span class="pct" id="lkPct">0%</span></div>
+        <div class="ptr"><div class="pfd" id="lkPfd" style="width:0%"></div><div class="pfc" id="lkPfc" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <!-- DESINE: Lakstu sarasas -->
+    <div class="lk-sb">
+      <div class="sbh">
+        <div class="sbt" id="sbTitle">Uzsakymai</div>
+        <button class="btn btn-g btn-sm" onclick="loadCurEtapas()">&#x21BB;</button>
+        <button id="pdfBtn" class="btn btn-s btn-sm" onclick="genPdfReport()" style="margin-left:4px">&#x2B50; PDF</button>
+        <div class="sbsr"><span class="sbs-i">&#x2315;</span><input type="text" id="lkSrch" placeholder="Ieskoti..." oninput="rlkList()"></div>
+      </div>
+      <div class="frow">
+        <button class="fb active" onclick="lkFlt('all',this)">Visi</button>
+        <button class="fb" onclick="lkFlt('p',this)">Laukia</button>
+        <button class="fb" onclick="lkFlt('c',this)">Surinkti</button>
+        <button class="fb" onclick="lkFlt('d',this)">Perduoti</button>
+      </div>
+      <div class="olist" id="lkList"><div class="empty-s">Pasirink etapa...</div></div>
+      <div class="lk-arch-bar" id="archBar" style="display:none">
+        <button class="btn btn-y btn-sm" style="width:100%" onclick="archvuotiCur()">Archyvuoti si etapa</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="view" id="view-stk">
+  <div class="page-wrap">
+    <div class="ph"><div><div class="ph-t">Metalo sandelis</div><div class="ph-s">Lakstu likuciai pagal stori</div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-s btn-sm" onclick="showSett()">Nustatymai</button>
+        <button class="btn btn-p" onclick="showRecv()">+ Gauti lakstus</button>
+      </div>
+    </div>
+    <div class="stk-sum" id="stkSum"></div>
+    <div class="card" style="overflow:hidden;padding:0">
+      <div class="card-h"><span class="card-t">Likutis</span><button class="btn btn-s btn-sm" onclick="loadStock()">&#x21BB;</button></div>
+      <div id="stkTbl"><div class="empty-s">Sandelis tuscias</div></div>
+    </div>
+    <div class="card" style="overflow:hidden;padding:0;margin-top:12px">
+      <div class="card-h"><span class="card-t">Istorija</span><button class="btn btn-s btn-sm" onclick="loadHist()">&#x21BB;</button></div>
+      <div id="histTbl"><div class="empty-s">Dar nera istorijos</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="view" id="view-dxf">
+  <div class="page-wrap">
+    <div class="ph"><div class="ph-t">DXF Uzsakymai</div><button class="btn btn-p" onclick="showNewOrd()">+ Naujas</button></div>
+    <div class="sumr" id="dxfSum"></div>
+    <div class="fbar">
+      <button class="fb active" onclick="dxfFlt('all',this)">Visi</button>
+      <button class="fb" onclick="dxfFlt('Naujas',this)">Nauji</button>
+      <button class="fb" onclick="dxfFlt('Vykdomas',this)">Vykdomi</button>
+      <button class="fb" onclick="dxfFlt('Baigtas',this)">Baigti</button>
+      <input class="si" id="dxfSrch" placeholder="Ieskoti..." oninput="rOrds()">
+    </div>
+    <div class="og" id="ordsGrid"><div class="empty-s">Jungiamasi...</div></div>
+  </div>
+</div>
+
+<div class="view" id="view-dv">
+  <div class="page-wrap">
+    <div class="back" onclick="back2Ords()">&#x2190; Grizti</div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="oi-top">
+        <div><div class="oid" id="dvId"></div><div class="oi-t" id="dvCli"></div><div class="oi-s" id="dvDsc"></div></div>
+        <div style="text-align:right">
+          <div class="wbig" id="dvWt">0</div><div class="wlbl">kg bendras svoris</div>
+          <div style="margin-top:8px;display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap">
+            <select class="stsel" id="dvSt" onchange="chSt()"><option>Naujas</option><option>Vykdomas</option><option>Baigtas</option></select>
+            <button class="btn btn-p btn-sm" onclick="printOrd()">Spausdinti</button>
+            <button class="btn btn-d btn-sm" onclick="delOrd()">Trinti</button>
+          </div>
+        </div>
+      </div>
+      <div id="dvMeta" style="font-size:11px;color:#57606a;font-family:'JetBrains Mono',monospace;margin-top:6px"></div>
+    </div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="ct">Prideti detale is DXF</div>
+      <div class="dropz" id="dropZ">
+        <input type="file" id="dxfFile" accept=".dxf" multiple onchange="handleDxf(event)">
+        <div class="dz-t">Tempk DXF failus cia arba spusk</div>
+        <div class="dz-s">.dxf - galima ikelti kelis failus</div>
+      </div>
+      <div style="margin-top:8px">
+        <label class="btn btn-s btn-sm" style="cursor:pointer">Ikelti aplanka<input type="file" id="dxfFolder" webkitdirectory multiple accept=".dxf" style="display:none" onchange="handleFolder(event)"></label>
+      </div>
+      <div class="cvw" id="cvW" style="display:none"><canvas id="dxfCv"></canvas></div>
+      <div class="pf" id="pForm" style="display:none">
+        <div class="wp"><div class="wv" id="wPv">0.000</div><div class="wl">kg (vieno vnt.)</div><div class="wa" id="wAr"></div></div>
+        <div class="fgrid">
+          <div><label class="fl">Pavadinimas</label><input type="text" id="dName"></div>
+          <div><label class="fl">Storis (mm)</label><select id="dThk" onchange="rcW();localStorage.setItem('lastThick',this.value)"><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="8">8</option><option value="10">10</option><option value="12">12</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="18">18</option><option value="20">20</option><option value="25">25</option></select></div>
+          <div><label class="fl">Kiekis</label><input type="number" id="dQty" value="1" min="1" oninput="rcW()"></div>
+        </div>
+        <button class="btn btn-p" style="width:100%" onclick="addDet()">+ Prideti detale</button>
+      </div>
+      <div class="msec">
+        <div class="mlbl">arba ivesk rankiniu budu</div>
+        <div class="fgrid">
+          <div><label class="fl">Pavadinimas</label><input type="text" id="mName"></div>
+          <div><label class="fl">Storis (mm)</label><select id="mThk" onchange="rcM();localStorage.setItem('lastThick',this.value)"><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="8">8</option><option value="10">10</option><option value="12">12</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="18">18</option><option value="20">20</option><option value="25">25</option></select></div>
+          <div><label class="fl">Plotas (cm2)</label><input type="number" id="mArea" step="0.01" oninput="rcM()"></div>
+        </div>
+        <div class="fgrid">
+          <div><label class="fl">Kiekis</label><input type="number" id="mQty" value="1" min="1" oninput="rcM()"></div>
+          <div><label class="fl">Svoris</label><div class="svor-d" id="mWp">0.000 kg</div></div>
+          <div style="display:flex;align-items:flex-end"><button class="btn btn-p" style="width:100%" onclick="addMDet()">+ Prideti</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="overflow:hidden;padding:0">
+      <div class="card-h"><span class="card-t">Detaliu sarasas</span><button class="btn btn-s btn-sm" onclick="loadDets()">&#x21BB;</button></div>
+      <div id="dtWrap"><div class="empty-s">Dar nera detaliu</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="view" id="view-arch">
+  <div class="page-wrap">
+    <div class="ph-t" style="margin-bottom:14px">Archyvai</div>
+    <div class="sc-grid" id="stageCards"><div class="empty-s">Dar nera archivu</div></div>
+    <div class="adbox" id="adBox" style="display:none">
+      <div class="adh"><div class="adt" id="adTitle"></div><button class="btn btn-s btn-sm" onclick="closeAd()">X</button></div>
+      <div class="adlist" id="adList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="view" id="view-rep">
+  <div class="page-wrap">
+    <div class="ph-t" style="margin-bottom:14px">Ataskaita</div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="ct">Laikotarpis</div>
+      <div class="fgrid" style="grid-template-columns:1fr 1fr;margin-bottom:10px">
+        <div><label class="fl">Nuo</label><input type="date" id="repFrom"></div>
+        <div><label class="fl">Iki</label><input type="date" id="repTo"></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <button class="btn btn-s btn-sm" onclick="setPeriod(7)">7 dienos</button>
+        <button class="btn btn-s btn-sm" onclick="setPeriod(30)">30 dienu</button>
+        <button class="btn btn-s btn-sm" onclick="setPeriod(0)">Sis menuo</button>
+      </div>
+      <button class="btn btn-p" onclick="genRep()">Generuoti</button>
+    </div>
+    <div id="repOut" style="display:none"></div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="mbg" id="noModal" style="display:none">
+  <div class="modal">
+    <div class="mh">Naujas DXF uzsakymas</div>
+    <div class="mf">
+      <div><label class="fl">Klientas *</label><input type="text" id="noC"></div>
+      <div><label class="fl">Aprasymas</label><input type="text" id="noD"></div>
+      <div><label class="fl">Pastabos</label><textarea id="noN"></textarea></div>
+      <div class="mb"><button class="btn btn-s" onclick="CM('noModal')">Atsaukti</button><button class="btn btn-p" onclick="createOrd()">Sukurti</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="mbg" id="recvModal" style="display:none">
+  <div class="modal">
+    <div class="mh">Gauti lakstus</div>
+    <div class="mf">
+      <div><label class="fl">Storis (mm)</label><select id="recThk"><option value="3">3 mm</option><option value="4">4 mm</option><option value="5">5 mm</option><option value="6">6 mm</option><option value="8">8 mm</option><option value="10">10 mm</option><option value="12">12 mm</option><option value="14">14 mm</option><option value="15">15 mm</option><option value="16">16 mm</option><option value="18">18 mm</option><option value="20">20 mm</option><option value="25">25 mm</option></select></div>
+      <div class="fgrid" style="grid-template-columns:1fr 1fr">
+        <div><label class="fl">Plotis (mm)</label><input type="number" id="recW" oninput="rcRecv()"></div>
+        <div><label class="fl">Ilgis (mm)</label><input type="number" id="recL" oninput="rcRecv()"></div>
+      </div>
+      <div class="fgrid" style="grid-template-columns:1fr 1fr">
+        <div><label class="fl">Kiekis (vnt.)</label><input type="number" id="recQ" value="1" oninput="rcRecv()"></div>
+        <div><label class="fl">Kaina / t (EUR)</label><input type="number" id="recP" step="0.01" oninput="rcRecv()"></div>
+      </div>
+      <div class="rec-prev" id="recPrev">Ivesk matmenis...</div>
+      <div><label class="fl">Pastabos (SF nr.)</label><input type="text" id="recN"></div>
+      <div class="mb"><button class="btn btn-s" onclick="CM('recvModal')">Atsaukti</button><button class="btn btn-p" onclick="doRecv()">Prideti</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="mbg" id="useModal" style="display:none">
+  <div class="modal">
+    <div class="mh">Sunaudoti lakstus</div>
+    <div class="mf">
+      <div id="useInfo" class="rec-prev"></div>
+      <div><label class="fl">Kiek vnt.?</label><input type="number" id="useQ" value="1" min="1"></div>
+      <div><label class="fl">Pastabos</label><input type="text" id="useNote"></div>
+      <div class="mb"><button class="btn btn-s" onclick="CM('useModal')">Atsaukti</button><button class="btn btn-y" onclick="doUse()">Sunaudoti</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="mbg" id="settModal" style="display:none">
+  <div class="modal">
+    <div class="mh">Nustatymai</div>
+    <div class="mf">
+      <div><label class="fl">Numatyta kaina / t (EUR)</label><input type="number" id="settP" step="0.01"></div>
+      <div><label class="fl">Zemos atsargos ispejimas</label><input type="number" id="settL" value="2" min="0"></div>
+      <div class="mb"><button class="btn btn-s" onclick="CM('settModal')">Atsaukti</button><button class="btn btn-p" onclick="saveSett()">Issaugoti</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="mbg" id="stModal" style="display:none">
+  <div class="modal">
+    <div class="mh">Archyvuoti etapa?</div>
+    <div id="stMn" style="font-size:11px;color:#57606a;margin-bottom:10px"></div>
+    <div id="stMs" class="rec-prev" style="margin-bottom:12px;line-height:2"></div>
+    <div class="mb"><button class="btn btn-s" onclick="CM('stModal')">Atsaukti</button><button class="btn btn-p" onclick="confirmStage()">Archyvuoti</button></div>
+  </div>
+</div>
+
+<div class="pmb" id="printMod" style="display:none">
+  <div class="pm">
+    <div class="pbr">
+      <button class="btn btn-p btn-sm" onclick="window.print()">Spausdinti</button>
+      <button class="btn btn-s btn-sm" onclick="dlPdf()">PDF</button>
+      <button class="btn btn-s btn-sm" onclick="CM('printMod')">Uzdaryti</button>
+    </div>
+    <div id="printArea"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORIAI=[3,4,5,6,8,10,12,14,15,16,18,20,25];
+const TANKIS=8000;
+</script>
+<script src="/static/js/dxf.js"></script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>
