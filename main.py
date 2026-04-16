@@ -869,6 +869,60 @@ function printOrd(){
 }
 
 
+
+function genPdfReport(){
+  var surinkti = lkOrders.filter(function(o){return o.collected && !o.delivered;});
+  var perduoti = lkOrders.filter(function(o){return o.delivered;});
+  var laukia = lkOrders.filter(function(o){return !o.collected;});
+  var now = new Date().toLocaleDateString('lt-LT') + ' ' + new Date().toTimeString().slice(0,5);
+  
+  function tableRows(arr, color){
+    if(!arr.length) return '<tr><td colspan="2" style="color:#aaa;padding:4px 8px">Tuscia</td></tr>';
+    return arr.map(function(o){
+      var t = (o.delivered ? o.deliveredAt : o.collected ? o.collectedAt : o.registered||'').slice(11,16);
+      return '<tr><td style="padding:4px 10px;border-bottom:1px solid #eee;font-family:monospace">'+o.kodas+'</td><td style="padding:4px 10px;border-bottom:1px solid #eee;color:'+color+'">'+t+'</td></tr>';
+    }).join('');
+  }
+  
+  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'
+    + 'body{font-family:Arial,sans-serif;margin:0;padding:12mm;font-size:10pt}'
+    + 'h1{font-size:16pt;font-weight:900;margin-bottom:2mm}'
+    + 'h2{font-size:11pt;font-weight:700;margin:6mm 0 2mm;padding:2mm 4mm;border-left:4px solid #0969da}'
+    + 'h2.g{border-left-color:#1a7f37}h2.b{border-left-color:#0969da}h2.y{border-left-color:#9a6700}'
+    + 'table{width:100%;border-collapse:collapse;margin-bottom:4mm}'
+    + 'th{background:#1e3a5f;color:white;padding:2mm 4mm;text-align:left;font-size:9pt}'
+    + 'td{padding:2mm 4mm;font-size:9pt}'
+    + '.sum{display:flex;gap:8mm;margin:4mm 0;padding:3mm;background:#f5f5f5}'
+    + '.sum-n{font-size:18pt;font-weight:900;font-family:monospace}'
+    + '.sum-l{font-size:8pt;color:#666;text-transform:uppercase}'
+    + '.foot{margin-top:8mm;font-size:8pt;color:#aaa;border-top:1px solid #ddd;padding-top:3mm}'
+    + '@page{margin:8mm;size:A4}'
+    + '</style></head><body>'
+    + '<h1>Sandelio ataskaita</h1>'
+    + '<div style="font-size:9pt;color:#666;margin-bottom:4mm">'+now+'</div>'
+    + '<div class="sum">'
+    + '<div><div class="sum-n" style="color:#1f2328">'+lkOrders.length+'</div><div class="sum-l">Is viso</div></div>'
+    + '<div><div class="sum-n" style="color:#1a7f37">'+surinkti.length+'</div><div class="sum-l">Surinkta</div></div>'
+    + '<div><div class="sum-n" style="color:#0969da">'+perduoti.length+'</div><div class="sum-l">Perduota</div></div>'
+    + '<div><div class="sum-n" style="color:#9a6700">'+laukia.length+'</div><div class="sum-l">Laukia</div></div>'
+    + '</div>'
+    + '<h2 class="g">Surinkta ('+surinkti.length+')</h2>'
+    + '<table><tr><th>Kodas</th><th>Laikas</th></tr>'+tableRows(surinkti,'#1a7f37')+'</table>'
+    + '<h2 class="b">Perduota ('+perduoti.length+')</h2>'
+    + '<table><tr><th>Kodas</th><th>Laikas</th></tr>'+tableRows(perduoti,'#0969da')+'</table>'
+    + '<h2 class="y">Laukia ('+laukia.length+')</h2>'
+    + '<table><tr><th>Kodas</th><th>Laikas</th></tr>'+tableRows(laukia,'#9a6700')+'</table>'
+    + '<div class="foot">Metalcraft – Sandelio sistema – '+now+'</div>'
+    + '</body></html>';
+  
+  var w = window.open('','_blank');
+  if(!w){alert('Leiskite popup langus!');return;}
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  setTimeout(function(){w.print();},600);
+}
+
 function nowS(){return new Date().toISOString().replace('T',' ').slice(0,19);}
 
 // Nustatymų įkėlimas
@@ -959,7 +1013,7 @@ _HTML = """<!DOCTYPE html>
       <div class="sbh">
         <div class="sbt">Uzsakymai</div>
         <button class="btn btn-g btn-sm" onclick="loadLk()">&#x21BB;</button>
-        <button id="emailBtn" class="btn btn-s btn-sm" onclick="siustiEmail()">&#x2709; Siusti ataskaita</button>
+        <button id="pdfBtn" class="btn btn-s btn-sm" onclick="genPdfReport()">&#x22C6; Atsisiusti PDF</button>
         <div class="sbsr"><span class="sbs-i">&#x2315;</span><input type="text" id="lkSrch" placeholder="Ieskoti..." oninput="rlkList()"></div>
       </div>
       <div class="frow">
