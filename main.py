@@ -618,7 +618,7 @@ function rStock(){
   const sorted=[...stock].sort((a,b)=>a.storis-b.storis);
   el.innerHTML=sorted.map(r=>{
     const nc=r.likoVnt===0?'empty':r.likoVnt<=settings.lowAlert?'warn':'ok';
-    return`<div class="stk-row"><div><div class="stk-thick">${r.storis}<span>mm</span></div></div><div><div class="stk-dims">${r.matmenys}mm</div><div class="stk-sub">${r.pastabos||''}</div></div><div><div class="stk-num ${nc}">${r.likoVnt}</div><div class="stk-sub">vnt.</div></div><div><div class="stk-num" style="font-size:13px;color:var(--tx2)">${r.likoKg.toFixed(1)}</div><div class="stk-sub">kg</div></div><div><div class="stk-num" style="font-size:12px;color:var(--tx2)">${r.likoT.toFixed(3)}</div><div class="stk-sub">t</div></div><div><div class="stk-val">${r.verte.toFixed(2)}€</div><div class="stk-sub">${r.kainaKg>0?r.kainaKg+'€/kg':''}</div></div><div class="stk-acts"><button class="btn btn-y btn-sm" onclick="showUse('${r.id}','${r.storis}mm ${r.matmenys}',${r.likoVnt})">−</button><button class="btn btn-d btn-sm" onclick="delStk('${r.id}')">✕</button></div></div>`;
+    return`<div class="stk-row"><div><div class="stk-thick">${r.storis}<span>mm</span></div></div><div><div class="stk-dims">${r.matmenys}mm</div><div class="stk-sub">${r.pastabos||''}</div></div><div><div class="stk-num ${nc}">${r.likoVnt}</div><div class="stk-sub">vnt.</div></div><div><div class="stk-num" style="font-size:13px;color:var(--tx2)">${r.likoKg.toFixed(1)}</div><div class="stk-sub">kg</div></div><div><div class="stk-num" style="font-size:12px;color:var(--tx2)">${r.likoT.toFixed(3)}</div><div class="stk-sub">t</div></div><div><div class="stk-val">${r.verte.toFixed(2)}€</div><div class="stk-sub">${r.kainaKg>0?r.kainaKg+'€/t':''}</div></div><div class="stk-acts"><button class="btn btn-y btn-sm" onclick="showUse('${r.id}','${r.storis}mm ${r.matmenys}',${r.likoVnt})">−</button><button class="btn btn-d btn-sm" onclick="delStk('${r.id}')">✕</button></div></div>`;
   }).join('')+`<div class="stk-tot"><div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tx2);font-weight:700">VISO</div><div></div><div><div class="stk-num" style="font-size:13px;color:var(--ac)">${totVnt}</div><div class="stk-sub">vnt.</div></div><div><div class="stk-num" style="font-size:12px;color:var(--tx2)">${totKg.toFixed(1)}</div><div class="stk-sub">kg</div></div><div><div class="stk-num" style="font-size:13px;color:var(--gn);font-weight:800">${totT}</div><div class="stk-sub">t</div></div><div><div class="stk-val" style="font-size:13px;font-weight:800">${totVal.toFixed(2)}€</div></div><div></div></div>`;
 }
 
@@ -1186,7 +1186,7 @@ _HTML = """<!DOCTYPE html>
       </div>
       <div class="fgrid" style="grid-template-columns:1fr 1fr">
         <div><label class="fl">Kiekis (vnt.)</label><input type="number" id="recQ" value="1" oninput="rcRecv()"></div>
-        <div><label class="fl">Kaina / kg (EUR)</label><input type="number" id="recP" step="0.01" oninput="rcRecv()"></div>
+        <div><label class="fl">Kaina / t (EUR)</label><input type="number" id="recP" step="0.01" oninput="rcRecv()"></div>
       </div>
       <div class="rec-prev" id="recPrev">Ivesk matmenis...</div>
       <div><label class="fl">Pastabos (SF nr.)</label><input type="text" id="recN"></div>
@@ -1504,7 +1504,7 @@ def gauti(data: dict, db: Session = Depends(get_db)):
     svoris_vnt = round((w/1000) * (l/1000) * (storis/1000) * TANKIS, 2)
     liko_kg = round(svoris_vnt * qty, 2)
     liko_t = round(liko_kg / 1000, 3)
-    verte = round(liko_kg * kaina, 2)
+    verte = round(liko_t * kaina, 2)  # kaina uz tona
     stk_id = "STK-" + str(int(datetime.utcnow().timestamp() * 1000))
     s = Sandelis(stk_id=stk_id, storis=storis, matmenys=f"{int(w)}×{int(l)}", svoris_vnt=svoris_vnt,
                  gauta_vnt=qty, liko_vnt=qty, liko_kg=liko_kg, liko_t=liko_t, kaina_kg=kaina, verte=verte,
@@ -1524,10 +1524,10 @@ def naudoti(stk_id: str, data: dict, db: Session = Depends(get_db)):
     s.liko_vnt = max(0, s.gauta_vnt - s.sunaudota_vnt)
     s.liko_kg = round(s.liko_vnt * s.svoris_vnt, 2)
     s.liko_t = round(s.liko_kg / 1000, 3)
-    s.verte = round(s.liko_kg * s.kaina_kg, 2)
+    s.verte = round(s.liko_t * s.kaina_kg, 2)  # kaina uz tona
     hist = SandelioIstorijia(veiksmas="Sunaudota", storis=s.storis, matmenys=s.matmenys, kiekis=qty,
                               svoris_vnt=s.svoris_vnt, svoris_iš_viso=round(qty*s.svoris_vnt, 2),
-                              kaina_kg=s.kaina_kg, verte=round(qty*s.svoris_vnt*s.kaina_kg, 2), pastabos=data.get("pastabos", ""))
+                              kaina_kg=s.kaina_kg, verte=round((qty*s.svoris_vnt/1000)*s.kaina_kg, 2), pastabos=data.get("pastabos", ""))
     db.add(hist); db.commit()
     return {"success": True, "likoVnt": s.liko_vnt, "likoKg": s.liko_kg}
 
