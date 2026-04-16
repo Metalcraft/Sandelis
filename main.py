@@ -256,18 +256,19 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--s2)}
 .ppfoot{display:flex;justify-content:space-between;font-size:7pt;color:#aaa;border-top:1px solid #ddd;padding-top:2mm;margin-top:3mm}
 """
 
-_DXFJS = """// DXF PARSERIS
-// TANKIS defined in HTML
+_DXFJS = """
+// DXF PARSERIS
+const TANKIS = 8000;
 
 function thickFromName(name){
-  const m=name.match(/[tT]-?(\d+(?:\.\d+)?)\s*mm/)||name.match(/[tT]-?(\d+(?:\.\d+)?)/)||name.match(/(\d+(?:\.\d+)?)\s*mm/);
+  const m=name.match(/[tT]-?([0-9]+(?:[.][0-9]+)?)[ ]*mm/)||name.match(/[tT]-?([0-9]+(?:[.][0-9]+)?)/)||name.match(/([0-9]+(?:[.][0-9]+)?)[ ]*mm/);
   if(!m)return null;
   const v=parseFloat(m[1]);
   return STORIAI.includes(v)?v:null;
 }
 
 function qtyFromName(name){
-  const m=name.match(/[_\-\s](\d+)\s*vnt/i)||name.match(/^(\d+)\s*vnt/i);
+  const m=name.match(/[_\-\s]([0-9]+)[ ]*vnt/i)||name.match(/^([0-9]+)[ ]*vnt/i);
   if(!m)return null;
   const v=parseInt(m[1]);
   return v>0&&v<=9999?v:null;
@@ -458,6 +459,7 @@ function drawContourSvg(konturas,sizeMm=14){
     return`<svg viewBox="-5 -5 110 110" width="${s}" height="${s}" xmlns="http://www.w3.org/2000/svg" style="display:block;margin:auto">${paths}</svg>`;
   }catch(e){return'';}
 }
+
 """
 
 _MAINJS = """// SANDĖLIO SISTEMA – main.js
