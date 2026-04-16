@@ -871,9 +871,16 @@ function printOrd(){
 
 
 function genPdfReport(){
-  var surinkti = lkOrders.filter(function(o){return o.collected && !o.delivered;});
-  var perduoti = lkOrders.filter(function(o){return o.delivered;});
-  var laukia = lkOrders.filter(function(o){return !o.collected;});
+  function sortByNum(arr){
+    return arr.slice().sort(function(a,b){
+      var na=parseInt((a.kodas.match(/\d+/g)||[]).join(''))||0;
+      var nb=parseInt((b.kodas.match(/\d+/g)||[]).join(''))||0;
+      return na-nb;
+    });
+  }
+  var surinkti = sortByNum(lkOrders.filter(function(o){return o.collected && !o.delivered;}));
+  var perduoti = sortByNum(lkOrders.filter(function(o){return o.delivered;}));
+  var laukia = sortByNum(lkOrders.filter(function(o){return !o.collected;}));
   var now = new Date().toLocaleDateString('lt-LT') + ' ' + new Date().toTimeString().slice(0,5);
   
   function tableRows(arr, color){
@@ -915,12 +922,15 @@ function genPdfReport(){
     + '<div class="foot">Metalcraft – Sandelio sistema – '+now+'</div>'
     + '</body></html>';
   
-  var w = window.open('','_blank');
-  if(!w){alert('Leiskite popup langus!');return;}
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
-  setTimeout(function(){w.print();},600);
+  var blob = new Blob([html], {type: 'text/html'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  var now2 = new Date();
+  var fname = 'ataskaita_' + now2.toISOString().slice(0,10) + '.html';
+  a.href = url;
+  a.download = fname;
+  a.click();
+  setTimeout(function(){URL.revokeObjectURL(url);}, 1000);
 }
 
 function nowS(){return new Date().toISOString().replace('T',' ').slice(0,19);}
