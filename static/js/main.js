@@ -57,15 +57,17 @@ async function loadCurEtapas(){
 
 async function newEtapas(){
   const inp = document.getElementById('newEtapasInp');
+  if(!inp) return;
   const name = inp.value.trim();
   if(!name){ toast('Iveski pavadinima!', true); return; }
-  // Patikrinti ar jau egzistuoja
   const exists = etapai.find(e => e.pavadinimas === name);
-  if(exists){ toast('Etapas jau egzistuoja!', true); return; }
+  if(exists){ toast('Etapas jau egzistuoja!', true); selectEtapas(name, name); return; }
   inp.value = '';
-  // Sukurti lokaliai ir pasirinkti
   etapai.push({pavadinimas: name, display: name, total: 0, surinkta: 0, perduota: 0, laukia: 0});
   rEtapai();
+  // Pasirinkti naują etapą select'e
+  const sel = document.getElementById('etapasSelect');
+  if(sel){ sel.value = name; }
   selectEtapas(name, name);
   toast('Etapas sukurtas: ' + name);
 }
