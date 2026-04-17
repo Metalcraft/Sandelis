@@ -26,60 +26,63 @@
 </nav>
 
 <div class="view active" id="view-lk">
-  <div class="lk-wrap3">
-    <!-- KAIRE: Etapu sarasas -->
-    <div class="lk-etapai">
-      <div class="le-h">
-        <div class="le-t">Etapai</div>
-        <button class="btn btn-g btn-sm" onclick="loadEtapai()">&#x21BB;</button>
-      </div>
-      <div class="le-new">
-        <input type="text" id="newEtapasInp" placeholder="Naujas etapas..." style="flex:1">
-        <button class="btn btn-p btn-sm" onclick="newEtapas()">+</button>
-      </div>
-      <div id="etapaiList"><div class="empty-s" style="padding:20px;font-size:11px">Kraunama...</div></div>
+  <div class="etapas-bar">
+    <div class="etapas-sel">
+      <span class="etapas-lbl">Etapas:</span>
+      <select id="etapasSelect" onchange="onEtapasChange(this.value)" class="etapas-select">
+        <option value="">-- Pasirink etapa --</option>
+      </select>
+      <button class="btn btn-g btn-sm" onclick="loadEtapai()">&#x21BB;</button>
     </div>
+    <div class="etapas-new">
+      <input type="text" id="newEtapasInp" placeholder="Naujas etapas..." style="width:140px">
+      <button class="btn btn-p btn-sm" onclick="newEtapas()">+ Sukurti</button>
+    </div>
+    <button class="btn btn-y btn-sm" id="archBtn" style="display:none" onclick="archvuotiCur()">Archyvuoti</button>
+  </div>
 
-    <!-- VIDURYS: Skanavimas -->
+  <div class="lk-wrap">
     <div class="lk-main">
       <div class="card">
-        <div class="ct">Skanavimas
-          <span id="aktyvusLabel" style="margin-left:8px;font-size:10px;color:var(--ac);font-weight:700"></span>
-        </div>
+        <div class="ct">Skanavimas <span id="aktyvusLabel" style="color:var(--ac);font-weight:700"></span></div>
+
         <div class="scan-f">
-  <span class="scan-ico">&#9638;</span>
-  <input
-    class="scan-inp"
-    id="scanInp"
-    type="text"
-    inputmode="text"
-    autocomplete="off"
-    autocorrect="off"
-    autocapitalize="off"
-    spellcheck="false"
-    enterkeyhint="done"
-    placeholder="Skanuok arba ivesk koda..."
-  >
-  <button class="btn btn-s btn-sm" type="button" onclick="openKeyboard()">⌨️</button>
-</div>
-        <div class="hint" id="scanHint">Pasirink etapa kaireje...</div>
+          <span class="scan-ico">&#9638;</span>
+          <input
+            class="scan-inp"
+            id="scanInp"
+            type="text"
+            inputmode="text"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            enterkeyhint="done"
+            placeholder="Skanuok arba ivesk koda..."
+          >
+          <button class="btn btn-s btn-sm" type="button" onclick="openKeyboard()">⌨️</button>
+        </div>
+
+        <div class="hint" id="scanHint">Pasirink etapa virsuje...</div>
         <div class="steps"><div class="step s1"></div><div class="step s2"></div><div class="step s3"></div></div>
         <div class="step-lbl"><span>1x Registruota</span><span>2x Surinkta</span><span>3x Perduota</span></div>
       </div>
+
       <div class="res" id="lkRes" style="display:none"><div class="rt" id="lkRt"></div><div class="rc" id="lkRc"></div><div class="rs" id="lkRs"></div></div>
+
       <div class="stats-row">
         <div class="stat"><div class="sn a" id="lkT">0</div><div class="sl">Is viso</div></div>
         <div class="stat"><div class="sn g" id="lkC">0</div><div class="sl">Surinkta</div></div>
         <div class="stat"><div class="sn b" id="lkD">0</div><div class="sl">Perduota</div></div>
         <div class="stat"><div class="sn y" id="lkP">0</div><div class="sl">Laukia</div></div>
       </div>
+
       <div class="prog-card">
         <div class="pt"><span>Progresas</span><span class="pct" id="lkPct">0%</span></div>
         <div class="ptr"><div class="pfd" id="lkPfd" style="width:0%"></div><div class="pfc" id="lkPfc" style="width:0%"></div></div>
       </div>
     </div>
 
-    <!-- DESINE: Lakstu sarasas -->
     <div class="lk-sb">
       <div class="sbh">
         <div class="sbt" id="sbTitle">Uzsakymai</div>
@@ -94,9 +97,6 @@
         <button class="fb" onclick="lkFlt('d',this)">Perduoti</button>
       </div>
       <div class="olist" id="lkList"><div class="empty-s">Pasirink etapa...</div></div>
-      <div class="lk-arch-bar" id="archBar" style="display:none">
-        <button class="btn btn-y btn-sm" style="width:100%" onclick="archvuotiCur()">Archyvuoti si etapa</button>
-      </div>
     </div>
   </div>
 </div>
@@ -153,6 +153,7 @@
       </div>
       <div id="dvMeta" style="font-size:11px;color:#57606a;font-family:'JetBrains Mono',monospace;margin-top:6px"></div>
     </div>
+
     <div class="card" style="margin-bottom:12px">
       <div class="ct">Prideti detale is DXF</div>
       <div class="dropz" id="dropZ">
@@ -173,6 +174,7 @@
         </div>
         <button class="btn btn-p" style="width:100%" onclick="addDet()">+ Prideti detale</button>
       </div>
+
       <div class="msec">
         <div class="mlbl">arba ivesk rankiniu budu</div>
         <div class="fgrid">
@@ -187,6 +189,7 @@
         </div>
       </div>
     </div>
+
     <div class="card" style="overflow:hidden;padding:0">
       <div class="card-h"><span class="card-t">Detaliu sarasas</span><button class="btn btn-s btn-sm" onclick="loadDets()">&#x21BB;</button></div>
       <div id="dtWrap"><div class="empty-s">Dar nera detaliu</div></div>
@@ -225,7 +228,6 @@
   </div>
 </div>
 
-<!-- MODALS -->
 <div class="mbg" id="noModal" style="display:none">
   <div class="modal">
     <div class="mh">Naujas DXF uzsakymas</div>
@@ -306,7 +308,33 @@
 <script>
 const STORIAI=[3,4,5,6,8,10,12,14,15,16,18,20,25];
 const TANKIS=8000;
+
+function openKeyboard() {
+  const inp = document.getElementById("scanInp");
+  if (!inp) return;
+
+  inp.readOnly = false;
+  inp.focus();
+  inp.click();
+
+  setTimeout(() => inp.focus(), 50);
+  setTimeout(() => inp.focus(), 150);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const inp = document.getElementById("scanInp");
+  if (!inp) return;
+
+  inp.addEventListener("keydown", function(e) {
+    if (e.key === "Enter") {
+      setTimeout(() => {
+        this.focus();
+      }, 100);
+    }
+  });
+});
 </script>
+
 <script src="/static/js/dxf.js"></script>
 <script src="/static/js/main.js"></script>
 </body>
