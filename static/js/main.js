@@ -63,9 +63,12 @@ async function newEtapas(){
   const exists = etapai.find(e => e.pavadinimas === name);
   if(exists){ toast('Etapas jau egzistuoja!', true); selectEtapas(name, name); return; }
   inp.value = '';
+  // Issaugoti etapa DB - sukuriant etapo zymeni
+  try{
+    await api('POST', '/api/etapai/issaugoti', {pavadinimas: name});
+  }catch(e){}
   etapai.push({pavadinimas: name, display: name, total: 0, surinkta: 0, perduota: 0, laukia: 0});
   rEtapai();
-  // Pasirinkti naują etapą select'e
   const sel = document.getElementById('etapasSelect');
   if(sel){ sel.value = name; }
   selectEtapas(name, name);
