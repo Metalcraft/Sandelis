@@ -242,3 +242,28 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--s2)}
 .ppsign{display:flex;gap:10mm;margin-top:5mm}
 .pss{border-top:1px solid #000;width:45mm;padding-top:2mm;font-size:7pt;color:#666}
 .ppfoot{display:flex;justify-content:space-between;font-size:7pt;color:#aaa;border-top:1px solid #ddd;padding-top:2mm;margin-top:3mm}
+
+/* MULTI-ETAPU ISDESTYMAS */
+.lk-wrap3{display:grid;grid-template-columns:200px 1fr 300px;min-height:calc(100vh - 52px)}
+@media(max-width:900px){.lk-wrap3{grid-template-columns:1fr}}
+.lk-etapai{border-right:1px solid var(--bd);background:var(--s1);display:flex;flex-direction:column}
+.le-h{padding:10px 12px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
+.le-t{font-weight:700;font-size:13px}
+.le-new{padding:8px 10px;border-bottom:1px solid var(--bd);display:flex;gap:6px}
+.le-new input{padding:5px 8px;font-size:12px}
+.etapas-item{padding:10px 14px;border-bottom:1px solid var(--bd);cursor:pointer;transition:background .1s;display:flex;flex-direction:column;gap:3px}
+.etapas-item:hover{background:var(--s2)}
+.etapas-item.active{background:var(--ac-bg);border-left:3px solid var(--ac)}
+.ei-name{font-weight:700;font-size:13px}
+.ei-stats{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tx2)}
+.ei-prog{height:3px;background:var(--s3);border-radius:2px;margin-top:4px;overflow:hidden}
+.ei-prog-f{height:100%;background:var(--gn);border-radius:2px;transition:width .3s}
+.lk-arch-bar{padding:8px 10px;border-top:1px solid var(--bd)}
+
+/* ETAPO PASIRINKIMO JUOSTA */
+.etapas-bar{display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--s1);border-bottom:1px solid var(--bd);flex-wrap:wrap}
+.etapas-sel{display:flex;align-items:center;gap:6px}
+.etapas-lbl{font-weight:700;font-size:13px;white-space:nowrap}
+.etapas-select{padding:5px 10px;background:var(--s1);border:1px solid var(--bd);color:var(--tx);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;border-radius:6px;min-width:160px;font-weight:600}
+.etapas-new{display:flex;align-items:center;gap:6px;margin-left:auto}
+.etapas-new input{padding:5px 8px;font-size:12px;width:140px}
