@@ -99,14 +99,14 @@ def archive_stage(data: dict, db: Session = Depends(get_db)):
     delivered = sum(1 for l in items if l.perduota)
     for l in items:
         l.etapas = name
-    e = Etapas(pavadinimas=name, iš_viso=total, surinkta=collected, perduota=delivered)
+    e = Etapas(pavadinimas=name, iš_viso=total, is_viso=total, surinkta=collected, perduota=delivered, aktyvus=False)
     db.add(e); db.commit()
     return {"success": True, "archiveName": name, "total": total, "collected": collected, "delivered": delivered}
 
 @app.get("/api/etapai")
 def get_etapai(db: Session = Depends(get_db)):
     etapai = db.query(Etapas).order_by(Etapas.sukurta.desc()).all()
-    return {"stages": [{"name": e.pavadinimas, "total": e.iš_viso, "collected": e.surinkta, "delivered": e.perduota, "pending": e.iš_viso - e.surinkta} for e in etapai]}
+    return {"stages": [{"name": e.pavadinimas, "total": e.is_viso, "collected": e.surinkta, "delivered": e.perduota, "pending": e.is_viso - e.surinkta} for e in etapai]}
 
 @app.get("/api/etapai/{name}")
 def get_etapas(name: str, db: Session = Depends(get_db)):
@@ -437,7 +437,7 @@ def archyvuoti_etapa(data: dict, db: Session = Depends(get_db)):
     arch_tag = "ARCH_" + arch_name
     for l in items:
         l.etapas = arch_tag
-    e = Etapas(pavadinimas=arch_tag, iš_viso=total, surinkta=collected, perduota=delivered)
+    e = Etapas(pavadinimas=arch_tag, iš_viso=total, is_viso=total, surinkta=collected, perduota=delivered, aktyvus=False)
     db.add(e); db.commit()
     return {"success": True, "archiveName": arch_tag, "total": total}
 
@@ -447,15 +447,19 @@ def issaugoti_etapa(data: dict, db: Session = Depends(get_db)):
     name = data.get("pavadinimas", "").strip()
     if not name:
         raise HTTPException(400, "Tuscias pavadinimas")
-    # Patikrinti ar jau yra etapas su tokiu pavadinimu
-    existing = db.query(Etapas).filter(Etapas.pavadinimas == name).first()
-    if existing:
-        return {"success": True, "exists": True}
-    # Sukurti tuščią etapą
-    e = Etapas(pavadinimas=name, iš_viso=0, surinkta=0, perduota=0)
-    db.add(e)
-    db.commit()
-    return {"success": True}
+    try:
+        # Patikrinti ar jau yra
+        existing = db.query(Etapas).filter(Etapas.pavadinimas == name).first()
+        if existing:
+            return {"success": True, "exists": True}
+        e = Etapas(pavadinimas=name, is_viso=0, surinkta=0, perduota=0, aktyvus=True)
+        db.add(e)
+        db.commit()
+        return {"success": True}
+    except Exception as ex:
+        db.rollback()
+        # Jei unique constraint - etapas jau yra
+        return {"success": True, "exists": True, "note": str(ex)[:100]}
 
 # PAGALBINES FUNKCIJOS
 def _lk(l):
