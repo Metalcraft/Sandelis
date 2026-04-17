@@ -328,9 +328,19 @@ def get_aktyvus_etapai(db: Session = Depends(get_db)):
     """Grąžina visus aktyvius etapus (su NULL etapas arba aktyviais)"""
     # Rasti unikalius aktyvius etapus (kur lakstai dar nearchyvuoti)
     from sqlalchemy import func, distinct
+    # Etapai su lakstais
     aktyvus = db.query(distinct(Lakstai.etapas)).filter(
-        Lakstai.etapas != None
+        Lakstai.etapas != None,
+        ~Lakstai.etapas.like('ARCH_%')
     ).all()
+    # Taip pat tusci etapai (be lakstu)
+    tusci_etapai = db.query(Etapas).filter(
+        ~Etapas.pavadinimas.like('ARCH_%')
+    ).all()
+    tusci_names = {e.pavadinimas for e in tusci_etapai}
+    aktyvus_names = {a[0] for a in aktyvus}
+    # Prideti tuscius etapus kurie nera aktyvuose
+    extra_tusci = [e for e in tusci_etapai if e.pavadinimas not in aktyvus_names]
     # Taip pat prideti "be etapo" grupe
     be_etapo = db.query(Lakstai).filter(Lakstai.etapas == None).count()
     result = []
@@ -344,6 +354,11 @@ def get_aktyvus_etapai(db: Session = Depends(get_db)):
         surinkta = sum(1 for l in items if l.surinkta)
         perduota = sum(1 for l in items if l.perduota)
         result.append({"pavadinimas": etapas, "display": etapas, "total": len(items), "surinkta": surinkta, "perduota": perduota, "laukia": len(items)-surinkta, "archyvuotas": False})
+    # Prideti tuscius etapus
+    for e in extra_tusci:
+        result.append({"pavadinimas": e.pavadinimas, "display": e.pavadinimas, "total": 0, "surinkta": 0, "perduota": 0, "laukia": 0, "archyvuotas": False})
+    # Surikiuoti pagal pavadinima
+    result.sort(key=lambda x: x["display"] or "")
     return {"etapai": result}
 
 @app.post("/api/etapai/sukurti")
@@ -425,6 +440,22 @@ def archyvuoti_etapa(data: dict, db: Session = Depends(get_db)):
     e = Etapas(pavadinimas=arch_tag, iš_viso=total, surinkta=collected, perduota=delivered)
     db.add(e); db.commit()
     return {"success": True, "archiveName": arch_tag, "total": total}
+
+
+@app.post("/api/etapai/issaugoti")
+def issaugoti_etapa(data: dict, db: Session = Depends(get_db)):
+    name = data.get("pavadinimas", "").strip()
+    if not name:
+        raise HTTPException(400, "Tuscias pavadinimas")
+    # Patikrinti ar jau yra etapas su tokiu pavadinimu
+    existing = db.query(Etapas).filter(Etapas.pavadinimas == name).first()
+    if existing:
+        return {"success": True, "exists": True}
+    # Sukurti tuščią etapą
+    e = Etapas(pavadinimas=name, iš_viso=0, surinkta=0, perduota=0)
+    db.add(e)
+    db.commit()
+    return {"success": True}
 
 # PAGALBINES FUNKCIJOS
 def _lk(l):
