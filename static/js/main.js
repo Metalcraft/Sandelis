@@ -13,21 +13,26 @@ async function loadEtapai(){
 }
 
 function rEtapai(){
-  const el = document.getElementById('etapaiList');
-  if(!etapai.length){
-    el.innerHTML = '<div class="empty-s" style="padding:20px;font-size:11px">Dar nera etapu</div>';
-    return;
-  }
-  el.innerHTML = etapai.map(e => {
-    const pct = e.total > 0 ? Math.round(e.surinkta/e.total*100) : 0;
+  const sel = document.getElementById('etapasSelect');
+  if(!sel) return;
+  const curVal = sel.value;
+  sel.innerHTML = '<option value="">-- Pasirink etapa --</option>';
+  etapai.forEach(e => {
     const id = e.pavadinimas || '__be_etapo__';
-    const isActive = (curEtapas === e.pavadinimas) || (curEtapas === '__be_etapo__' && e.pavadinimas === null);
-    return `<div class="etapas-item ${isActive?'active':''}" onclick="selectEtapas('${id}', '${e.display}')">
-      <div class="ei-name">${e.display}</div>
-      <div class="ei-stats">${e.surinkta}/${e.total} surinkta</div>
-      <div class="ei-prog"><div class="ei-prog-f" style="width:${pct}%"></div></div>
-    </div>`;
-  }).join('');
+    const pct = e.total > 0 ? Math.round(e.surinkta/e.total*100) : 0;
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = e.display + ' (' + e.surinkta + '/' + e.total + ')';
+    if(id === curVal) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function onEtapasChange(id){
+  if(!id) return;
+  const et = etapai.find(e => (e.pavadinimas||'__be_etapo__') === id);
+  const display = et ? et.display : id;
+  selectEtapas(id, display);
 }
 
 function selectEtapas(id, display){
