@@ -37,11 +37,12 @@ class Lakstai(Base):
 class Etapas(Base):
     __tablename__ = "etapai"
     id = Column(Integer, primary_key=True)
-    pavadinimas = Column(String(100), unique=True)
+    pavadinimas = Column(String(100), unique=True, nullable=False)
     sukurta = Column(DateTime, default=datetime.utcnow)
-    iš_viso = Column(Integer, default=0)
-    surinkta = Column(Integer, default=0)
-    perduota = Column(Integer, default=0)
+    is_viso = Column(Integer, default=0, nullable=False)
+    surinkta = Column(Integer, default=0, nullable=False)
+    perduota = Column(Integer, default=0, nullable=False)
+    aktyvus = Column(Boolean, default=True, nullable=False)
 
 class Uzsakymas(Base):
     __tablename__ = "uzsakymai"
