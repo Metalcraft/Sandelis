@@ -46,7 +46,22 @@
         <div class="ct">Skanavimas
           <span id="aktyvusLabel" style="margin-left:8px;font-size:10px;color:var(--ac);font-weight:700"></span>
         </div>
-        <div class="scan-f"><span class="scan-ico">&#9638;</span><input class="scan-inp" id="scanInp" placeholder="Skanuok arba ivesk koda..." autocomplete="off" spellcheck="false"></div>
+        <div class="scan-f">
+  <span class="scan-ico">&#9638;</span>
+  <input
+    class="scan-inp"
+    id="scanInp"
+    type="text"
+    inputmode="text"
+    autocomplete="off"
+    autocorrect="off"
+    autocapitalize="off"
+    spellcheck="false"
+    enterkeyhint="done"
+    placeholder="Skanuok arba ivesk koda..."
+  >
+  <button class="btn btn-s btn-sm" type="button" onclick="openKeyboard()">⌨️</button>
+</div>
         <div class="hint" id="scanHint">Pasirink etapa kaireje...</div>
         <div class="steps"><div class="step s1"></div><div class="step s2"></div><div class="step s3"></div></div>
         <div class="step-lbl"><span>1x Registruota</span><span>2x Surinkta</span><span>3x Perduota</span></div>
