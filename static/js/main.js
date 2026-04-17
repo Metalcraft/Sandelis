@@ -39,7 +39,7 @@ function selectEtapas(id, display){
   curEtapas = id;
   document.getElementById('aktyvusLabel').textContent = '→ ' + display;
   document.getElementById('sbTitle').textContent = display;
-  document.getElementById('archBar').style.display = 'block';
+  const ab=document.getElementById('archBtn');if(ab)ab.style.display='inline-flex';
   document.getElementById('scanHint').textContent = 'Skanuok i: ' + display;
   rEtapai();
   loadCurEtapas();
@@ -84,7 +84,7 @@ async function archvuotiCur(){
     rlkList();
     document.getElementById('aktyvusLabel').textContent = '';
     document.getElementById('sbTitle').textContent = 'Uzsakymai';
-    document.getElementById('archBar').style.display = 'none';
+    const ab2=document.getElementById('archBtn');if(ab2)ab2.style.display='none';
     document.getElementById('scanHint').textContent = 'Pasirink etapa kaireje...';
     loadEtapai();
   }
