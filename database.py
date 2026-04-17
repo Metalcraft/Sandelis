@@ -5,8 +5,6 @@ from datetime import datetime
 import os
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./sandelis.db")
-
-# Railway PostgreSQL fix
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
@@ -21,8 +19,6 @@ def get_db():
     finally:
         db.close()
 
-# ── MODELIAI ─────────────────────────────────────────
-
 class Lakstai(Base):
     __tablename__ = "lakstai"
     id = Column(Integer, primary_key=True, index=True)
@@ -32,17 +28,22 @@ class Lakstai(Base):
     surinkta_kada = Column(DateTime, nullable=True)
     perduota = Column(Boolean, default=False)
     perduota_kada = Column(DateTime, nullable=True)
-    etapas = Column(String(100), nullable=True)
+    etapas = Column(String(100), nullable=True, index=True)
+
+class AktyvusEtapas(Base):
+    __tablename__ = "aktyvus_etapas"
+    id = Column(Integer, primary_key=True)
+    pavadinimas = Column(String(200), unique=True, nullable=False)
+    sukurta = Column(DateTime, default=datetime.utcnow)
 
 class Etapas(Base):
     __tablename__ = "etapai"
     id = Column(Integer, primary_key=True)
-    pavadinimas = Column(String(100), unique=True, nullable=False)
+    pavadinimas = Column(String(200), unique=True)
     sukurta = Column(DateTime, default=datetime.utcnow)
-    if_viso = Column("iš_viso", Integer, default=0, nullable=False)
-    surinkta = Column(Integer, default=0, nullable=False)
-    perduota = Column(Integer, default=0, nullable=False)
-    
+    is_viso = Column(Integer, default=0)
+    surinkta_sk = Column(Integer, default=0)
+    perduota_sk = Column(Integer, default=0)
 
 class Uzsakymas(Base):
     __tablename__ = "uzsakymai"
@@ -97,7 +98,7 @@ class SandelioIstorijia(Base):
     matmenys = Column(String(100))
     kiekis = Column(Integer)
     svoris_vnt = Column(Float)
-    svoris_iš_viso = Column(Float)
+    svoris_is_viso = Column(Float)
     kaina_kg = Column(Float, default=0)
     verte = Column(Float, default=0)
     pastabos = Column(String(500), nullable=True)
