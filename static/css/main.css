@@ -267,3 +267,6 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--s2)}
 .etapas-select{padding:5px 10px;background:var(--s1);border:1px solid var(--bd);color:var(--tx);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;border-radius:6px;min-width:160px;font-weight:600}
 .etapas-new{display:flex;align-items:center;gap:6px;margin-left:auto}
 .etapas-new input{padding:5px 8px;font-size:12px;width:140px}
+.scan-inp {
+  font-size: 16px;
+}
