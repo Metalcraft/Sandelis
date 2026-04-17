@@ -39,10 +39,10 @@ class Etapas(Base):
     id = Column(Integer, primary_key=True)
     pavadinimas = Column(String(100), unique=True, nullable=False)
     sukurta = Column(DateTime, default=datetime.utcnow)
-    is_viso = Column(Integer, default=0, nullable=False)
+    if_viso = Column("iš_viso", Integer, default=0, nullable=False)
     surinkta = Column(Integer, default=0, nullable=False)
     perduota = Column(Integer, default=0, nullable=False)
-    aktyvus = Column(Boolean, default=True, nullable=False)
+    
 
 class Uzsakymas(Base):
     __tablename__ = "uzsakymai"
