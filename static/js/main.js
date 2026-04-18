@@ -142,3 +142,33 @@ async function handleScan(kodas) {
   }
 });
 }
+async function newEtapas() {
+  const inp = document.getElementById('newEtapasInp');
+  if (!inp) {
+    alert("Nerastas input");
+    return;
+  }
+
+  const name = inp.value.trim();
+  if (!name) {
+    alert("Įvesk etapą");
+    return;
+  }
+
+  try {
+    await fetch('/api/etapai/issaugoti', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pavadinimas: name })
+    });
+
+    curEtapas = name;
+    inp.value = '';
+
+    alert("Etapas sukurtas: " + name);
+
+  } catch (e) {
+    alert("Klaida kuriant etapą");
+    console.error(e);
+  }
+}
