@@ -19,15 +19,15 @@ async function api(method, url, data) {
   return r.json();
 }
 
-// ===== ETAPAS =====
 function newEtapas() {
   const inp = document.getElementById('newEtapasInp');
-  if (!inp) return;
-
   const name = inp.value.trim();
-  if (!name) {
-    alert("Įvesk etapą");
-    return;
+
+  if (!name) return;
+
+  curEtapas = name;
+  inp.value = '';
+}
   }
 
   curEtapas = name;
