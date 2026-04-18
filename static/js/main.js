@@ -136,4 +136,9 @@ async function handleScan(kodas) {
     lkOrders = lkOrders.filter(o => o.kodas !== kodas);
     alert("Klaida registruojant");
   }
+  document.addEventListener('change', (e) => {
+  if (e.target.id === 'etapasSelect') {
+    curEtapas = e.target.value;
+  }
+});
 }
