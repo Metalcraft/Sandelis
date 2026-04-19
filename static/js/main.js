@@ -1,6 +1,5 @@
 // ════ SANDĖLIO SISTEMA ════
-const TANKIS = 8000;
-const STORIAI = [3,4,5,6,8,10,12,14,15,16,18,20,25];
+// TANKIS ir STORIAI apibrėžti index.html <script> bloke
 
 let curEtapas = null;
 let lkOrders = [];
@@ -686,7 +685,7 @@ async function loadStages() {
     document.getElementById('archBdg').textContent = stages.length;
     const el = document.getElementById('stageCards');
     if (!stages.length) { el.innerHTML = '<div class="empty-s">Dar nera archivu</div>'; return; }
-    el.innerHTML = stages.map(s => '<div class="sc-card" onclick="openArch('' + s.name.replace(/'/g,"\'") + '')">'
+    el.innerHTML = stages.map(s => '<div class="sc-card" onclick="openArch(\'' + s.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')">'
       + '<div class="sc-name">' + s.name.replace('ARCH_','') + '</div>'
       + '<div class="sc-stats">Viso: ' + s.total + ' | Surinkta: ' + s.collected + ' | Perduota: ' + s.delivered + '</div>'
       + '</div>').join('');
@@ -714,45 +713,7 @@ async function openArch(name) {
 
 function closeAd() { document.getElementById('adBox').style.display = 'none'; }
 
-function calcDims(d) {
-  if (!d.konturas) return '';
-  try {
-    const parts = d.konturas.split('|');
-    if (parts.length >= 3) return parts[0] + 'x' + parts[1] + 'mm';
-  } catch(e) {}
-  return '';
-}
-
-function drawContourSvg(konturas, size) {
-  if (!konturas) return '';
-  try {
-    const parts = konturas.split('|');
-    if (parts.length < 3) return '';
-    const w = parseFloat(parts[0]) || 1;
-    const h = parseFloat(parts[1]) || 1;
-    const pts = parts.slice(2).join('|');
-    const scale = Math.min((size*3)/w, (size*3)/h);
-    const sw = Math.round(w*scale), sh = Math.round(h*scale);
-    return '<svg width="' + sw + '" height="' + sh + '" viewBox="0 0 ' + sw + ' ' + sh + '" xmlns="http://www.w3.org/2000/svg"><rect width="' + sw + '" height="' + sh + '" fill="#f0f4ff"/><rect x="1" y="1" width="' + (sw-2) + '" height="' + (sh-2) + '" fill="none" stroke="#1e3a5f" stroke-width="1.5"/></svg>';
-  } catch(e) { return ''; }
-}
-
-function drawPrev(entities) {
-  const cv = document.getElementById('dxfCv');
-  document.getElementById('cvW').style.display = 'block';
-  if (!cv || !entities) return;
-  cv.width = 300; cv.height = 200;
-  const ctx = cv.getContext('2d');
-  ctx.fillStyle = '#f0f4ff';
-  ctx.fillRect(0, 0, 300, 200);
-  ctx.strokeStyle = '#1e3a5f';
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(10, 10, 280, 180);
-}
-
-function serializeContour(entities, w, h) {
-  return Math.round(w) + '|' + Math.round(h) + '|contour';
-}
+// calcDims, drawContourSvg, drawPrev, serializeContour — apibrėžtos dxf.js
 
 // Papildomos archyvu funkcijos
 async function loadAll() {
