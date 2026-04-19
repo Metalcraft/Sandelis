@@ -36,18 +36,17 @@
       <button class="btn btn-g btn-sm" onclick="loadEtapai()">&#x21BB;</button>
     </div>
     <div class="etapas-new">
-      <input type="text" id="newEtapasInp" placeholder="Naujas etapas..." style="width:140px">
+      <input type="text" id="newEtapasInp" placeholder="Naujas etapas..." style="width:140px" onclick="this.focus()">
       <button class="btn btn-p btn-sm" onclick="newEtapas()">+ Sukurti</button>
     </div>
     <button class="btn btn-y btn-sm" id="archBtn" style="display:none" onclick="archvuotiCur()">Archyvuoti</button>
-    <button class="btn btn-d btn-sm" id="delEtapBtn" style="display:none" onclick="delEtapas()"><button class="btn btn-y btn-sm" id="archBtn" style="display:none" onclick="archvuotiCur()">Archyvuoti</button>#x1F5D1; Trinti etapa</button>
+    <button class="btn btn-d btn-sm" id="delEtapBtn" style="display:none" onclick="delEtapas()">&#x1F5D1; Trinti etapa</button>
   </div>
   <div class="lk-wrap">
     <div class="lk-main">
       <div class="card">
         <div class="ct">Skanavimas <span id="aktyvusLabel" style="color:var(--ac);font-weight:700"></span></div>
-        <div class="scan-f"><span class="scan-ico">&#9638;</span><input class="scan-inp" id="scanInp" placeholder="Skanuok arba ivesk koda..." autocomplete="off" spellcheck="false" onblur="showMobileBtn()" onfocus="hideMobileBtn()"></div>
-        <button id="mobileTapBtn" onclick="document.getElementById('scanInp').focus()" style="display:none;width:100%;padding:18px;font-size:17px;font-weight:700;background:var(--ac);color:#fff;border:none;border-radius:10px;cursor:pointer;margin-top:8px;align-items:center;justify-content:center;gap:10px">&#x2328; Bakstelėk čia įvesti kodą</button>
+        <div class="scan-f"><span class="scan-ico">&#9638;</span><input class="scan-inp" id="scanInp" placeholder="Skanuok arba ivesk koda..." autocomplete="off" spellcheck="false"></div>
         <div class="hint" id="scanHint">Pasirink etapa virsuje...</div>
         <div class="steps"><div class="step s1"></div><div class="step s2"></div><div class="step s3"></div></div>
         <div class="step-lbl"><span>1x Registruota</span><span>2x Surinkta</span><span>3x Perduota</span></div>
@@ -125,6 +124,7 @@
         <div><div class="oid" id="dvId"></div><div class="oi-t" id="dvCli"></div><div class="oi-s" id="dvDsc"></div></div>
         <div style="text-align:right">
           <div class="wbig" id="dvWt">0</div><div class="wlbl">kg bendras svoris</div>
+          <div class="wbig" id="dvSum" style="color:var(--gn);margin-top:4px">0.00€</div><div class="wlbl">bendra suma</div>
           <div style="margin-top:8px;display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap">
             <select class="stsel" id="dvSt" onchange="chSt()"><option>Naujas</option><option>Vykdomas</option><option>Baigtas</option></select>
             <button class="btn btn-p btn-sm" onclick="printOrd()">Spausdinti</button>
@@ -257,6 +257,7 @@
     <div class="mf">
       <div><label class="fl">Numatyta kaina / t (EUR)</label><input type="number" id="settP" step="0.01"></div>
       <div><label class="fl">Zemos atsargos ispejimas</label><input type="number" id="settL" value="2" min="0"></div>
+      <div><label class="fl">DXF numatyta kaina (EUR/kg)</label><input type="number" id="settDxf" step="0.01" value="1.45"></div>
       <div class="mb"><button class="btn btn-s" onclick="CM('settModal')">Atsaukti</button><button class="btn btn-p" onclick="saveSett()">Issaugoti</button></div>
     </div>
   </div>
