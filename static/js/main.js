@@ -7,7 +7,7 @@ let lkF = 'all';
 let etapai = [];
 let dxfOrders = [], dxfDets = [], curOrd = null, curArea = 0, curContour = '';
 let stock = [], history = [], lkLC = null, lkLT = 0;
-let settings = {defaultPrice: 0, lowAlert: 2};
+let settings = {defaultPrice: 0, lowAlert: 2, dxfKaina: 1.45};
 
 // ════ API ════
 async function api(method, url, data) {
@@ -60,28 +60,7 @@ function SW(v) {
   }
 }
 function CM(id) { document.getElementById(id).style.display = 'none'; }
-const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
-
-function focusScan() {
-  try {
-    if (!isMobile) {
-      document.getElementById('scanInp').focus();
-    } else {
-      // Mobiliuosiuose focus() be tiesioginio tap neatidaro klaviatūros —
-      // rodom didelį mygtuką kad vartotojas pats paliestų
-      showMobileBtn();
-    }
-  } catch(e) {}
-}
-function showMobileBtn() {
-  if (!isMobile) return;
-  const btn = document.getElementById('mobileTapBtn');
-  if (btn) btn.style.display = 'flex';
-}
-function hideMobileBtn() {
-  const btn = document.getElementById('mobileTapBtn');
-  if (btn) btn.style.display = 'none';
-}
+function focusScan() { try { document.getElementById('scanInp').focus(); } catch(e) {} }
 function toast(msg, warn=false, cls='') {
   const el = document.getElementById('toast');
   el.textContent = msg;
@@ -477,11 +456,13 @@ async function delStk(id) {
 function showSett() {
   document.getElementById('settP').value=settings.defaultPrice||'';
   document.getElementById('settL').value=settings.lowAlert||2;
+  document.getElementById('settDxf').value=settings.dxfKaina||1.45;
   document.getElementById('settModal').style.display='flex';
 }
 function saveSett() {
   settings.defaultPrice=parseFloat(document.getElementById('settP').value)||0;
   settings.lowAlert=parseInt(document.getElementById('settL').value)||2;
+  settings.dxfKaina=parseFloat(document.getElementById('settDxf').value)||1.45;
   CM('settModal'); localStorage.setItem('sandSettings',JSON.stringify(settings)); toast('Issaugota');
 }
 
@@ -543,6 +524,8 @@ async function loadDets() {
   const r=await api('GET','/api/uzsakymai/'+curOrd.id+'/detales');
   dxfDets=r.details||[]; rDets();
   document.getElementById('dvWt').textContent=dxfDets.reduce((s,d)=>s+d.svoris,0).toFixed(3);
+  const _showSum = !curOrd || !(curOrd.klientas||'').toLowerCase().includes('metalika');
+  const sumEl=document.getElementById('dvSum'); if(sumEl){sumEl.textContent=_showSum?dxfDets.reduce((s,d)=>s+(d.suma||0),0).toFixed(2)+'€':'';sumEl.style.display=_showSum?'':'none';const sumLbl=sumEl.nextElementSibling;if(sumLbl)sumLbl.style.display=_showSum?'':'';}
 }
 function rDets() {
   const w=document.getElementById('dtWrap');
@@ -565,23 +548,32 @@ function rDets() {
         +'<td><button class="btn btn-d btn-sm" onclick="delDet(\''+d.detId+'\')">x</button></td></tr>';
     });
   });
-  w.innerHTML='<table><thead><tr><th>#</th><th>Pavadinimas</th><th>Storis</th><th>Matmenys</th><th>Kiekis</th><th>Svoris</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'
-    +'<div class="dttot"><span style="color:var(--tx3)">Viso: <strong style="color:var(--tx)">'+tq+'vnt.</strong></span><span>Bendras svoris: <span class="tot">'+tw.toFixed(3)+'kg</span></span></div>';
+  w.innerHTML='<table><thead><tr><th>#</th><th>Pavadinimas</th><th>Storis</th><th>Matmenys</th><th>Kiekis</th><th>Svoris</th>'+(showKaina?'<th>EUR/kg</th><th>Suma EUR</th>':'')+'<th></th></tr></thead><tbody>'+rows+'</tbody></table>'
+    +'<div class="dttot"><span style="color:var(--tx3)">Viso: <strong style="color:var(--tx)">'+tq+'vnt.</strong></span><span>Svoris: <span class="tot">'+tw.toFixed(3)+'kg</span></span>'+(showKaina?'<span>Bendra suma: <span class="tot" style="color:var(--gn)">'+ts.toFixed(2)+'€</span></span>':'')+'</div>';
 }
 async function updDet(detId,field,value) {
   const d=dxfDets.find(x=>x.detId===detId); if(!d) return;
   if(field==='storis') d.storis=parseFloat(value);
   else if(field==='kiekis') d.kiekis=parseInt(value)||1;
   d.svoris=Math.round(d.plotas*(d.storis/10)*(TANKIS/1000)*d.kiekis/1000*1000)/1000;
+  d.suma=Math.round(d.svoris*(d.kainaKg||1.45)*100)/100;
   const wEl=document.getElementById('w-'+detId); if(wEl) wEl.value=d.svoris.toFixed(3);
+  const sEl=document.getElementById('s-'+detId); if(sEl) sEl.textContent=d.suma.toFixed(2)+'€';
   document.getElementById('dvWt').textContent=dxfDets.reduce((s,d)=>s+d.svoris,0).toFixed(3);
-  api('PUT','/api/detales/'+detId,{storis:d.storis,kiekis:d.kiekis,plotas:d.plotas});
+  api('PUT','/api/detales/'+detId,{storis:d.storis,kiekis:d.kiekis,plotas:d.plotas,kaina_kg:d.kainaKg||1.45});
 }
 async function updDetW(detId,value) {
   const d=dxfDets.find(x=>x.detId===detId); if(!d) return;
   d.svoris=Math.round(parseFloat(value)*1000)/1000;
   document.getElementById('dvWt').textContent=dxfDets.reduce((s,d)=>s+d.svoris,0).toFixed(3);
   api('PUT','/api/detales/'+detId,{storis:d.storis,kiekis:d.kiekis,svoris:d.svoris,plotas:d.plotas});
+}
+async function updDetK(detId,value) {
+  const d=dxfDets.find(x=>x.detId===detId); if(!d) return;
+  d.kainaKg=Math.round(parseFloat(value)*100)/100||1.45;
+  d.suma=Math.round(d.svoris*d.kainaKg*100)/100;
+  const sEl=document.getElementById('s-'+detId); if(sEl) sEl.textContent=d.suma.toFixed(2)+'€';
+  api('PUT','/api/detales/'+detId,{storis:d.storis,kiekis:d.kiekis,kaina_kg:d.kainaKg,plotas:d.plotas});
 }
 async function delDet(id) { if(!confirm('Istrinti?')) return; await api('DELETE','/api/detales/'+id); dxfDets=dxfDets.filter(d=>d.detId!==id); rDets(); document.getElementById('dvWt').textContent=dxfDets.reduce((s,d)=>s+d.svoris,0).toFixed(3); toast('Istrinta'); }
 function handleDxf(e) { if(e.target.files.length) handleMultiDxf(Array.from(e.target.files)); }
@@ -643,12 +635,12 @@ function rcW(){const t=parseFloat(document.getElementById('dThk').value)||3,q=pa
 function rcM(){const t=parseFloat(document.getElementById('mThk').value)||3,a=parseFloat(document.getElementById('mArea').value)||0,q=parseInt(document.getElementById('mQty').value)||1;document.getElementById('mWp').textContent=(a*(t/10)*(TANKIS/1000)*q/1000).toFixed(3)+' kg';}
 async function addDet(){
   if(!curOrd) return; if(curArea<=0){toast('Plotas=0',true);return;}
-  const r=await api('POST','/api/detales',{uzsakymoId:curOrd.id,pavadinimas:document.getElementById('dName').value.trim()||'Detale',storis:parseFloat(document.getElementById('dThk').value),plotas:curArea,kiekis:parseInt(document.getElementById('dQty').value)||1,konturas:curContour});
+  const r=await api('POST','/api/detales',{uzsakymoId:curOrd.id,pavadinimas:document.getElementById('dName').value.trim()||'Detale',storis:parseFloat(document.getElementById('dThk').value),plotas:curArea,kiekis:parseInt(document.getElementById('dQty').value)||1,konturas:curContour,kaina_kg:settings.dxfKaina||1.45});
   if(r.success){document.getElementById('pForm').style.display='none';document.getElementById('cvW').style.display='none';document.getElementById('dxfFile').value='';curArea=0;curContour='';await loadDets();toast('Detale: '+r.svoris.toFixed(3)+'kg');}
 }
 async function addMDet(){
   if(!curOrd) return; const a=parseFloat(document.getElementById('mArea').value)||0; if(a<=0){toast('Ivesk plota!',true);return;}
-  const r=await api('POST','/api/detales',{uzsakymoId:curOrd.id,pavadinimas:document.getElementById('mName').value.trim()||'Detale',storis:parseFloat(document.getElementById('mThk').value),plotas:a,kiekis:parseInt(document.getElementById('mQty').value)||1,konturas:''});
+  const r=await api('POST','/api/detales',{uzsakymoId:curOrd.id,pavadinimas:document.getElementById('mName').value.trim()||'Detale',storis:parseFloat(document.getElementById('mThk').value),plotas:a,kiekis:parseInt(document.getElementById('mQty').value)||1,konturas:'',kaina_kg:settings.dxfKaina||1.45});
   if(r.success){document.getElementById('mName').value='';document.getElementById('mArea').value='';document.getElementById('mQty').value='1';document.getElementById('mWp').textContent='0.000 kg';await loadDets();toast('Detale: '+r.svoris.toFixed(3)+'kg');}
 }
 function setupDrop() {
