@@ -30,10 +30,7 @@ window.onload = async () => {
     const s1 = document.getElementById('dThk'); if (s1) s1.value = lt;
     const s2 = document.getElementById('mThk'); if (s2) s2.value = lt;
   }
-  await loadEtapai();
-  await loadDxfOrds();
-  await loadStock();
-  await loadHist();
+  await loadAll();
   setPeriod(30);
   setupDrop();
 };
@@ -679,3 +676,89 @@ function dlPdf(){
   setTimeout(()=>w.print(),600);
 }
 function nowS(){return new Date().toISOString().replace('T',' ').slice(0,19);}
+
+
+// ════ ARCHYVAI ════
+async function loadStages() {
+  try {
+    const r = await api('GET', '/api/etapai/archyvai');
+    const stages = r.stages || [];
+    document.getElementById('archBdg').textContent = stages.length;
+    const el = document.getElementById('stageCards');
+    if (!stages.length) { el.innerHTML = '<div class="empty-s">Dar nera archivu</div>'; return; }
+    el.innerHTML = stages.map(s => '<div class="sc-card" onclick="openArch('' + s.name.replace(/'/g,"\'") + '')">'
+      + '<div class="sc-name">' + s.name.replace('ARCH_','') + '</div>'
+      + '<div class="sc-stats">Viso: ' + s.total + ' | Surinkta: ' + s.collected + ' | Perduota: ' + s.delivered + '</div>'
+      + '</div>').join('');
+  } catch(e) {}
+}
+
+async function openArch(name) {
+  try {
+    const r = await api('GET', '/api/etapai/lakstai/' + encodeURIComponent(name));
+    const items = r.orders || [];
+    const el = document.getElementById('adList');
+    document.getElementById('adTitle').textContent = name.replace('ARCH_','');
+    document.getElementById('adBox').style.display = 'block';
+    if (!items.length) { el.innerHTML = '<div class="empty-s">Tuscias</div>'; return; }
+    const surinkti = items.filter(o => o.collected);
+    const laukia = items.filter(o => !o.collected);
+    el.innerHTML = '<div style="padding:8px;font-size:12px;color:var(--tx2)">Surinkta: <strong>' + surinkti.length + '</strong> | Laukia: <strong>' + laukia.length + '</strong></div>'
+      + items.sort((a,b) => a.kodas.localeCompare(b.kodas)).map(o =>
+        '<div class="oi ' + (o.delivered?'sdd':o.collected?'sc':'') + '">'
+        + '<div class="oc">' + o.kodas + '</div>'
+        + '<span class="ost ' + (o.delivered?'s2':o.collected?'s1':'s0') + '">' + (o.delivered?'Perduota':o.collected?'Surinkta':'Laukia') + '</span>'
+        + '</div>').join('');
+  } catch(e) {}
+}
+
+function closeAd() { document.getElementById('adBox').style.display = 'none'; }
+
+function calcDims(d) {
+  if (!d.konturas) return '';
+  try {
+    const parts = d.konturas.split('|');
+    if (parts.length >= 3) return parts[0] + 'x' + parts[1] + 'mm';
+  } catch(e) {}
+  return '';
+}
+
+function drawContourSvg(konturas, size) {
+  if (!konturas) return '';
+  try {
+    const parts = konturas.split('|');
+    if (parts.length < 3) return '';
+    const w = parseFloat(parts[0]) || 1;
+    const h = parseFloat(parts[1]) || 1;
+    const pts = parts.slice(2).join('|');
+    const scale = Math.min((size*3)/w, (size*3)/h);
+    const sw = Math.round(w*scale), sh = Math.round(h*scale);
+    return '<svg width="' + sw + '" height="' + sh + '" viewBox="0 0 ' + sw + ' ' + sh + '" xmlns="http://www.w3.org/2000/svg"><rect width="' + sw + '" height="' + sh + '" fill="#f0f4ff"/><rect x="1" y="1" width="' + (sw-2) + '" height="' + (sh-2) + '" fill="none" stroke="#1e3a5f" stroke-width="1.5"/></svg>';
+  } catch(e) { return ''; }
+}
+
+function drawPrev(entities) {
+  const cv = document.getElementById('dxfCv');
+  document.getElementById('cvW').style.display = 'block';
+  if (!cv || !entities) return;
+  cv.width = 300; cv.height = 200;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#f0f4ff';
+  ctx.fillRect(0, 0, 300, 200);
+  ctx.strokeStyle = '#1e3a5f';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(10, 10, 280, 180);
+}
+
+function serializeContour(entities, w, h) {
+  return Math.round(w) + '|' + Math.round(h) + '|contour';
+}
+
+// Papildomos archyvu funkcijos
+async function loadAll() {
+  await loadEtapai();
+  await loadDxfOrds();
+  await loadStock();
+  await loadHist();
+  await loadStages();
+}
