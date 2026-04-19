@@ -60,7 +60,28 @@ function SW(v) {
   }
 }
 function CM(id) { document.getElementById(id).style.display = 'none'; }
-function focusScan() { try { document.getElementById('scanInp').focus(); } catch(e) {} }
+const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+
+function focusScan() {
+  try {
+    if (!isMobile) {
+      document.getElementById('scanInp').focus();
+    } else {
+      // Mobiliuosiuose focus() be tiesioginio tap neatidaro klaviatūros —
+      // rodom didelį mygtuką kad vartotojas pats paliestų
+      showMobileBtn();
+    }
+  } catch(e) {}
+}
+function showMobileBtn() {
+  if (!isMobile) return;
+  const btn = document.getElementById('mobileTapBtn');
+  if (btn) btn.style.display = 'flex';
+}
+function hideMobileBtn() {
+  const btn = document.getElementById('mobileTapBtn');
+  if (btn) btn.style.display = 'none';
+}
 function toast(msg, warn=false, cls='') {
   const el = document.getElementById('toast');
   el.textContent = msg;
