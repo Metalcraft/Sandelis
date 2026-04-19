@@ -108,3 +108,13 @@ class SandelioIstorijia(Base):
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    # Prideti trukstamus stulpelius jei ju nera (migracija)
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE detales ADD COLUMN IF NOT EXISTS kaina_kg FLOAT DEFAULT 1.45"))
+            conn.execute(text("ALTER TABLE detales ADD COLUMN IF NOT EXISTS suma FLOAT DEFAULT 0"))
+            conn.execute(text("ALTER TABLE uzsakymai ADD COLUMN IF NOT EXISTS bendra_suma FLOAT DEFAULT 0"))
+            conn.commit()
+        except Exception:
+            pass
