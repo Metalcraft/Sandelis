@@ -534,23 +534,43 @@ function rDets() {
   const showKaina = !curOrd || !(curOrd.klientas||'').toLowerCase().includes('metalika');
   const tw=dxfDets.reduce((s,d)=>s+d.svoris,0);
   const tq=dxfDets.reduce((s,d)=>s+d.kiekis,0);
+  const ts=dxfDets.reduce((s,d)=>s+(d.suma||0),0);
   const groups={};
-  dxfDets.forEach(d=>{const t=String(d.storis);if(!groups[t])groups[t]={t,dets:[],w:0,q:0};groups[t].dets.push(d);groups[t].w+=d.svoris;groups[t].q+=d.kiekis;});
+  dxfDets.forEach(d=>{
+    const t=String(d.storis);
+    if(!groups[t])groups[t]={t,dets:[],w:0,q:0,s:0};
+    groups[t].dets.push(d);groups[t].w+=d.svoris;groups[t].q+=d.kiekis;groups[t].s+=(d.suma||0);
+  });
   let rows=''; let idx=0;
   Object.values(groups).forEach(g=>{
-    rows+='<tr style="background:var(--s2);border-top:2px solid var(--bd)"><td colspan="2"></td><td colspan="2" style="font-weight:800;font-size:13px;color:var(--ac);font-family:monospace;padding:6px 12px">'+g.t+'mm</td><td style="font-size:11px;color:var(--tx2);font-family:monospace">'+g.dets.length+'det.</td><td style="font-size:11px;color:var(--tx2);font-family:monospace">'+g.q+'vnt.</td><td style="font-size:11px;color:var(--ac);font-weight:700;font-family:monospace">'+g.w.toFixed(3)+'kg</td><td></td></tr>';
+    rows+='<tr style="background:var(--s2);border-top:2px solid var(--bd)">'
+      +'<td colspan="2"></td>'
+      +'<td colspan="2" style="font-weight:800;font-size:13px;color:var(--ac);font-family:monospace;padding:6px 12px">'+g.t+'mm</td>'
+      +'<td style="font-size:11px;color:var(--tx2);font-family:monospace">'+g.dets.length+'det.</td>'
+      +'<td style="font-size:11px;color:var(--tx2);font-family:monospace">'+g.q+'vnt.</td>'
+      +'<td style="font-size:11px;color:var(--ac);font-weight:700;font-family:monospace">'+g.w.toFixed(3)+'kg</td>'
+      +(showKaina?'<td></td><td style="font-size:11px;color:var(--gn);font-weight:700;font-family:monospace">'+g.s.toFixed(2)+'€</td>':'')
+      +'<td></td></tr>';
     g.dets.forEach(d=>{
       idx++;
-      rows+='<tr><td class="mono" style="color:var(--tx3);font-size:10px">'+idx+'</td><td style="font-weight:600">'+d.pavadinimas+'</td>'
+      rows+='<tr>'
+        +'<td class="mono" style="color:var(--tx3);font-size:10px">'+idx+'</td>'
+        +'<td style="font-weight:600">'+d.pavadinimas+'</td>'
         +'<td><select class="det-inp" onchange="updDet(\''+d.detId+'\',\'storis\',this.value)">'+STORIAI.map(t=>'<option value="'+t+'"'+(d.storis===t?' selected':'')+'>'+t+'mm</option>').join('')+'</select></td>'
         +'<td class="mono" style="font-size:11px;color:var(--tx2)">'+calcDims(d)+'</td>'
         +'<td><input type="number" class="det-inp" value="'+d.kiekis+'" min="1" style="width:50px" onchange="updDet(\''+d.detId+'\',\'kiekis\',this.value)"></td>'
         +'<td><input type="number" class="det-inp num" value="'+d.svoris.toFixed(3)+'" min="0" step="0.001" style="width:70px;color:var(--ac);font-weight:700" id="w-'+d.detId+'" onchange="updDetW(\''+d.detId+'\',this.value)"><span style="font-size:10px;color:var(--tx3)">kg</span></td>'
-        +'<td><button class="btn btn-d btn-sm" onclick="delDet(\''+d.detId+'\')">x</button></td></tr>';
+        +(showKaina
+          ?'<td><input type="number" class="det-inp" value="'+(d.kainaKg||1.45).toFixed(2)+'" min="0" step="0.01" style="width:65px;color:var(--gn);font-weight:700" id="k-'+d.detId+'" onchange="updDetK(\''+d.detId+'\',this.value)"></td>'
+           +'<td style="font-weight:700;color:var(--gn);font-family:monospace" id="s-'+d.detId+'">'+(d.suma||0).toFixed(2)+'€</td>'
+          :'')
+        +'<td><button class="btn btn-d btn-sm" onclick="delDet(\''+d.detId+'\')">x</button></td>'
+        +'</tr>';
     });
   });
-  w.innerHTML='<table><thead><tr><th>#</th><th>Pavadinimas</th><th>Storis</th><th>Matmenys</th><th>Kiekis</th><th>Svoris</th>'+(showKaina?'<th>EUR/kg</th><th>Suma EUR</th>':'')+'<th></th></tr></thead><tbody>'+rows+'</tbody></table>'
-    +'<div class="dttot"><span style="color:var(--tx3)">Viso: <strong style="color:var(--tx)">'+tq+'vnt.</strong></span><span>Svoris: <span class="tot">'+tw.toFixed(3)+'kg</span></span>'+(showKaina?'<span>Bendra suma: <span class="tot" style="color:var(--gn)">'+ts.toFixed(2)+'€</span></span>':'')+'</div>';
+  const th='<table><thead><tr><th>#</th><th>Pavadinimas</th><th>Storis</th><th>Matmenys</th><th>Kiekis</th><th>Svoris</th>'+(showKaina?'<th>EUR/kg</th><th>Suma EUR</th>':'')+'<th></th></tr></thead><tbody>';
+  const tf='</tbody></table><div class="dttot"><span style="color:var(--tx3)">Viso: <strong style="color:var(--tx)">'+tq+'vnt.</strong></span><span>Svoris: <span class="tot">'+tw.toFixed(3)+'kg</span></span>'+(showKaina?'<span>Bendra suma: <span class="tot" style="color:var(--gn)">'+ts.toFixed(2)+'€</span></span>':'')+'</div>';
+  w.innerHTML=th+rows+tf;
 }
 async function updDet(detId,field,value) {
   const d=dxfDets.find(x=>x.detId===detId); if(!d) return;
