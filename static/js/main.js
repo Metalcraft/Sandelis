@@ -187,7 +187,7 @@ async function delEtapas() {
   } catch(e) { toast('Klaida trinant etapa: ' + e.message, true); }
 }
 
-
+async function archvuotiCur() {
   if (!curEtapas) { toast('Pasirink etapa!', true); return; }
   if (!confirm('Archyvuoti "' + curEtapas + '"?')) return;
   try {
