@@ -115,21 +115,17 @@ def get_archyvai(db: Session = Depends(get_db)):
 def get_etapo_lakstai(etapas: str, db: Session = Depends(get_db)):
     items = db.query(Lakstai).filter(Lakstai.etapas == etapas).all()
     return {"orders": [_lk(l) for l in items]}
-@app.get("/api/etapai/lakstai/{etapas}")
-def get_etapo_lakstai(etapas: str, db: Session = Depends(get_db)):
-    items = db.query(Lakstai).filter(Lakstai.etapas == etapas).all()
-    return {"orders": [_lk(l) for l in items]}
 
-# ← ČIA įkelk šias eilutes:
 
 @app.delete("/api/etapai/{pavadinimas}")
 def delete_etapas(pavadinimas: str, db: Session = Depends(get_db)):
+    # Istrinti visus lakstus susijusius su situ etapu
     db.query(Lakstai).filter(Lakstai.etapas == pavadinimas).delete()
+    # Istrinti is aktyviu etapu saraso
     db.query(AktyvusEtapas).filter(AktyvusEtapas.pavadinimas == pavadinimas).delete()
     db.commit()
     return {"success": True}
 
-# ════ LAKSTAI API ════
 # ════ LAKSTAI API ════
 
 @app.post("/api/lakstai/register_v2")
@@ -211,11 +207,14 @@ def add_detale(data: dict, db: Session = Depends(get_db)):
     plotas = float(data.get("plotas", 0))
     kiekis = int(data.get("kiekis", 1))
     svoris = round(plotas * (storis / 10) * (TANKIS / 1000) * kiekis / 1000, 3)
+    kaina_kg = float(data.get("kaina_kg", 1.45))
+    suma = round(svoris * kaina_kg, 2)
     d = Detale(det_id=det_id, uzsakymo_id=data["uzsakymoId"], pavadinimas=data.get("pavadinimas", "Detale"),
-               storis=storis, plotas=plotas, kiekis=kiekis, svoris=svoris, konturas=data.get("konturas", ""))
+               storis=storis, plotas=plotas, kiekis=kiekis, svoris=svoris, konturas=data.get("konturas", ""),
+               kaina_kg=kaina_kg, suma=suma)
     db.add(d); db.commit()
     _recalc(data["uzsakymoId"], db)
-    return {"success": True, "detId": det_id, "svoris": svoris}
+    return {"success": True, "detId": det_id, "svoris": svoris, "suma": suma}
 
 @app.put("/api/detales/{det_id}")
 def update_detale(det_id: str, data: dict, db: Session = Depends(get_db)):
@@ -223,13 +222,15 @@ def update_detale(det_id: str, data: dict, db: Session = Depends(get_db)):
     if not d: raise HTTPException(404)
     if "storis" in data: d.storis = float(data["storis"])
     if "kiekis" in data: d.kiekis = int(data["kiekis"])
+    if "kaina_kg" in data: d.kaina_kg = float(data["kaina_kg"])
     if "svoris" in data:
         d.svoris = float(data["svoris"])
     else:
         d.svoris = round(d.plotas * (d.storis / 10) * (TANKIS / 1000) * d.kiekis / 1000, 3)
+    d.suma = round(d.svoris * (d.kaina_kg or 1.45), 2)
     db.commit()
     _recalc(d.uzsakymo_id, db)
-    return {"success": True, "svoris": d.svoris}
+    return {"success": True, "svoris": d.svoris, "suma": d.suma}
 
 @app.delete("/api/detales/{det_id}")
 def delete_detale(det_id: str, db: Session = Depends(get_db)):
@@ -394,13 +395,15 @@ def _lk(l):
 def _uzs(u):
     return {"id": u.uzs_id, "klientas": u.klientas, "aprasymas": u.aprasymas or "",
             "pastabos": u.pastabos or "", "statusas": u.statusas,
-            "bendraSvoris": u.bendras_svoris, "detaliuSk": u.detaliu_sk,
+            "bendraSvoris": u.bendras_svoris, "bendraSuma": u.bendra_suma or 0, "detaliuSk": u.detaliu_sk,
             "sukurta": u.sukurta.strftime("%Y-%m-%d %H:%M:%S") if u.sukurta else ""}
 
 def _det(d):
     return {"detId": d.det_id, "uzsakymoId": d.uzsakymo_id, "pavadinimas": d.pavadinimas,
             "storis": d.storis, "plotas": d.plotas, "kiekis": d.kiekis, "svoris": d.svoris,
             "konturas": d.konturas or "",
+            "kainaKg": d.kaina_kg or 1.45,
+            "suma": d.suma or 0,
             "prideta": d.prideta.strftime("%Y-%m-%d %H:%M:%S") if d.prideta else ""}
 
 def _stk(s):
@@ -416,6 +419,7 @@ def _recalc(uzs_id, db):
     u = db.query(Uzsakymas).filter(Uzsakymas.uzs_id == uzs_id).first()
     if u:
         u.bendras_svoris = round(sum(d.svoris for d in dets), 3)
+        u.bendra_suma = round(sum(d.suma or 0 for d in dets), 2)
         u.detaliu_sk = len(dets)
         db.commit()
 
