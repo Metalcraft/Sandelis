@@ -54,6 +54,7 @@ class Uzsakymas(Base):
     pastabos = Column(Text, nullable=True)
     statusas = Column(String(50), default="Naujas")
     bendras_svoris = Column(Float, default=0)
+    bendra_suma = Column(Float, default=0)
     detaliu_sk = Column(Integer, default=0)
     sukurta = Column(DateTime, default=datetime.utcnow)
     detales = relationship("Detale", back_populates="uzsakymas", cascade="all, delete-orphan")
@@ -69,6 +70,8 @@ class Detale(Base):
     kiekis = Column(Integer, default=1)
     svoris = Column(Float)
     konturas = Column(Text, nullable=True)
+    kaina_kg = Column(Float, default=1.45)
+    suma = Column(Float, default=0)
     prideta = Column(DateTime, default=datetime.utcnow)
     uzsakymas = relationship("Uzsakymas", back_populates="detales")
 
