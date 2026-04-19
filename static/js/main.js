@@ -145,12 +145,14 @@ function onEtapasChange(val) {
     document.getElementById('sbTitle').textContent = display;
     document.getElementById('scanHint').textContent = 'Skanuok i: ' + display;
     const ab = document.getElementById('archBtn'); if (ab) ab.style.display = 'inline-flex';
+    const db = document.getElementById('delEtapBtn'); if (db) db.style.display = 'inline-flex';
     loadCurEtapas();
   } else {
     document.getElementById('aktyvusLabel').textContent = '';
     document.getElementById('sbTitle').textContent = 'Uzsakymai';
     document.getElementById('scanHint').textContent = 'Pasirink etapa virsuje...';
     const ab = document.getElementById('archBtn'); if (ab) ab.style.display = 'none';
+    const db = document.getElementById('delEtapBtn'); if (db) db.style.display = 'none';
     lkOrders = []; lkStats(); rlkList();
   }
   focusScan();
@@ -183,7 +185,30 @@ async function newEtapas() {
   } catch(e) { toast('Klaida: ' + e.message, true); }
 }
 
-async function archvuotiCur() {
+async function delEtapas() {
+  if (!curEtapas) { toast('Pasirink etapa!', true); return; }
+  const et = etapai.find(e => e.pavadinimas === curEtapas);
+  const total = et ? et.total : 0;
+  const msg = total > 0
+    ? 'Etape "' + curEtapas + '" yra ' + total + ' uzsakymu.\nAr tikrai istrinti visa etapa su visais uzsakymais?'
+    : 'Istrinti etapa "' + curEtapas + '"?';
+  if (!confirm(msg)) return;
+  try {
+    await api('DELETE', '/api/etapai/' + encodeURIComponent(curEtapas));
+    toast('Etapas istrinta!');
+    curEtapas = null;
+    lkOrders = []; lkStats(); rlkList();
+    document.getElementById('aktyvusLabel').textContent = '';
+    document.getElementById('sbTitle').textContent = 'Uzsakymai';
+    document.getElementById('scanHint').textContent = 'Pasirink etapa virsuje...';
+    const ab = document.getElementById('archBtn'); if (ab) ab.style.display = 'none';
+    const db = document.getElementById('delEtapBtn'); if (db) db.style.display = 'none';
+    const sel = document.getElementById('etapasSelect'); if (sel) sel.value = '';
+    await loadEtapai();
+  } catch(e) { toast('Klaida trinant etapa: ' + e.message, true); }
+}
+
+
   if (!curEtapas) { toast('Pasirink etapa!', true); return; }
   if (!confirm('Archyvuoti "' + curEtapas + '"?')) return;
   try {
