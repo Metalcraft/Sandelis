@@ -531,6 +531,7 @@ function rDets() {
   const w=document.getElementById('dtWrap');
   dxfDets.sort((a,b)=>a.storis-b.storis||a.pavadinimas.localeCompare(b.pavadinimas));
   if(!dxfDets.length){w.innerHTML='<div class="empty-s">Dar nera detaliu</div>';return;}
+  const showKaina = !curOrd || !(curOrd.klientas||'').toLowerCase().includes('metalika');
   const tw=dxfDets.reduce((s,d)=>s+d.svoris,0);
   const tq=dxfDets.reduce((s,d)=>s+d.kiekis,0);
   const groups={};
