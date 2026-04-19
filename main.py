@@ -115,7 +115,21 @@ def get_archyvai(db: Session = Depends(get_db)):
 def get_etapo_lakstai(etapas: str, db: Session = Depends(get_db)):
     items = db.query(Lakstai).filter(Lakstai.etapas == etapas).all()
     return {"orders": [_lk(l) for l in items]}
+@app.get("/api/etapai/lakstai/{etapas}")
+def get_etapo_lakstai(etapas: str, db: Session = Depends(get_db)):
+    items = db.query(Lakstai).filter(Lakstai.etapas == etapas).all()
+    return {"orders": [_lk(l) for l in items]}
 
+# ← ČIA įkelk šias eilutes:
+
+@app.delete("/api/etapai/{pavadinimas}")
+def delete_etapas(pavadinimas: str, db: Session = Depends(get_db)):
+    db.query(Lakstai).filter(Lakstai.etapas == pavadinimas).delete()
+    db.query(AktyvusEtapas).filter(AktyvusEtapas.pavadinimas == pavadinimas).delete()
+    db.commit()
+    return {"success": True}
+
+# ════ LAKSTAI API ════
 # ════ LAKSTAI API ════
 
 @app.post("/api/lakstai/register_v2")
