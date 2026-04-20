@@ -828,3 +828,56 @@ async function loadAll() {
   await loadHist();
   await loadStages();
 }
+
+// ════ ETIKETĖS ════
+function etkPreview() {
+  const storis = document.getElementById('etkStoris').value.trim();
+  const matmenys = document.getElementById('etkMatmenys').value.trim();
+  const kiekis = parseInt(document.getElementById('etkKiekis').value) || 1;
+  if (!storis || !matmenys) { toast('Ivesk stori ir matmenis!', true); return; }
+  document.getElementById('etkPrevStoris').textContent = storis + 'mm';
+  document.getElementById('etkPrevMatmenys').textContent = matmenys + 'mm';
+  document.getElementById('etkKiekisLbl').textContent = kiekis + ' vnt.';
+  document.getElementById('etkPrev').style.display = 'block';
+  try {
+    JsBarcode('#etkBc', storis + 'mm-' + matmenys, {
+      format: 'CODE128', width: 2, height: 45,
+      displayValue: true, fontSize: 11, margin: 4
+    });
+  } catch(e) {}
+}
+
+function etkPrint() {
+  const storis = document.getElementById('etkStoris').value.trim();
+  const matmenys = document.getElementById('etkMatmenys').value.trim();
+  const kiekis = parseInt(document.getElementById('etkKiekis').value) || 1;
+  if (!storis || !matmenys) { toast('Ivesk stori ir matmenis!', true); return; }
+  const barcodeVal = storis + 'mm-' + matmenys;
+  let labelsHtml = '';
+  for (let i = 0; i < kiekis; i++) {
+    labelsHtml += `<div class="lbl"><div class="lbl-top">${storis}mm</div><div class="lbl-mid">${matmenys}mm</div><svg class="lbl-bc" id="lbc${i}"></svg></div>`;
+  }
+  const w = window.open('', '_blank');
+  if (!w) { alert('Leiskite popup langus!'); return; }
+  w.document.open();
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"><\/script>
+  <style>
+    body{margin:0;padding:4mm;font-family:Arial,sans-serif}
+    .lbl{display:inline-block;width:80mm;border:1px solid #000;padding:3mm;margin:2mm;vertical-align:top;page-break-inside:avoid;text-align:center}
+    .lbl-top{font-size:28pt;font-weight:900;letter-spacing:2px}
+    .lbl-mid{font-size:14pt;font-weight:700;color:#333;margin:2mm 0}
+    .lbl-bc{display:block;margin:0 auto;width:100%}
+    @media print{@page{margin:4mm;size:A4}}
+  </style></head><body>
+  ${labelsHtml}
+  <script>
+    window.onload = function() {
+      document.querySelectorAll('[id^="lbc"]').forEach(function(el) {
+        try { JsBarcode(el, '${barcodeVal}', {format:'CODE128',width:2,height:45,displayValue:true,fontSize:11,margin:4}); } catch(e) {}
+      });
+      setTimeout(function(){ window.print(); }, 600);
+    };
+  <\/script></body></html>`);
+  w.document.close();
+}
