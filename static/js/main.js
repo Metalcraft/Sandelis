@@ -361,14 +361,12 @@ function genPdfReport() {
 }
 
 // ════ SANDĖLIS ════
-function showLabel(storis, matmenys, svorisVnt) {
+function showLabel(storis, matmenys) {
   const modal = document.getElementById('labelModal');
   document.getElementById('lblStoris').textContent = storis + 'mm';
   document.getElementById('lblMatmenys').textContent = matmenys + 'mm';
-  document.getElementById('lblSvoris').textContent = svorisVnt + ' kg';
   document.getElementById('lblStoVal').value = storis;
   document.getElementById('lblMatVal').value = matmenys;
-  document.getElementById('lblSvorVal').value = svorisVnt;
   document.getElementById('lblQty').value = 1;
   modal.style.display = 'flex';
 }
@@ -376,7 +374,6 @@ function showLabel(storis, matmenys, svorisVnt) {
 function printLabels() {
   const storis = document.getElementById('lblStoVal').value;
   const matmenys = document.getElementById('lblMatVal').value;
-  const svoris = document.getElementById('lblSvorVal').value;
   const qty = parseInt(document.getElementById('lblQty').value) || 1;
   const barcodeVal = storis + 'mm-' + matmenys;
   let labelsHtml = '';
@@ -385,7 +382,6 @@ function printLabels() {
       <div class="lbl">
         <div class="lbl-top">${storis}mm</div>
         <div class="lbl-mid">${matmenys}mm</div>
-        <div class="lbl-bot">${parseFloat(svoris).toFixed(2)} kg/vnt</div>
         <svg class="lbl-bc" id="lbc${i}"></svg>
       </div>`;
   }
@@ -442,7 +438,7 @@ function rStock() {
       + '<div><div class="stk-num" style="font-size:12px;color:var(--tx2)">' + r.likoT.toFixed(3) + '</div><div class="stk-sub">t</div></div>'
       + '<div><div class="stk-val">' + r.verte.toFixed(2) + 'EUR</div><div class="stk-sub">' + (r.kainaKg>0?r.kainaKg+'EUR/t':'') + '</div></div>'
       + '<div class="stk-acts"><button class="btn btn-y btn-sm" onclick="showUse(\'' + r.id + '\',\'' + r.storis + 'mm ' + r.matmenys + '\',' + r.likoVnt + ')">-</button>'
-      + '<button class="btn btn-s btn-sm" onclick="showLabel(\'' + r.storis + '\',\'' + r.matmenys + '\',\'' + r.svorisVnt + '\')">&#x1F3F7;</button>'
+      + '<button class="btn btn-s btn-sm" onclick="showLabel(\'' + r.storis + '\',\'' + r.matmenys + '\')">&#x1F3F7;</button>'
       + '<button class="btn btn-d btn-sm" onclick="delStk(\'' + r.id + '\')">x</button></div></div>';
   }).join('') + '<div class="stk-tot"><div style="font-family:monospace;font-size:10px;font-weight:700">VISO</div><div></div>'
     + '<div><div class="stk-num" style="font-size:13px;color:var(--ac)">' + totVnt + '</div><div class="stk-sub">vnt.</div></div>'
