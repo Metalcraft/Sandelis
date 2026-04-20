@@ -133,7 +133,7 @@ def change_slaptazodis(data: dict, db: Session = Depends(get_db)):
 # ════ ETAPAI API ════
 
 @app.get("/api/etapai/aktyvus")
-def get_aktyvus_etapai(db: Session = Depends(get_db)):
+def get_aktyvus_etapai(token: str = "", db: Session = Depends(get_db)):
     result = []
     seen = set()
     # Etapai su lakstais
@@ -193,12 +193,12 @@ def archyvuoti_etapa(data: dict, db: Session = Depends(get_db)):
     return {"success": True, "archiveName": arch_name, "total": len(items)}
 
 @app.get("/api/etapai/archyvai")
-def get_archyvai(db: Session = Depends(get_db)):
+def get_archyvai(token: str = "", db: Session = Depends(get_db)):
     arch = db.query(Etapas).order_by(Etapas.sukurta.desc()).all()
     return {"stages": [{"name": e.pavadinimas, "total": e.is_viso, "collected": e.surinkta_sk, "delivered": e.perduota_sk} for e in arch]}
 
 @app.get("/api/etapai/lakstai/{etapas}")
-def get_etapo_lakstai(etapas: str, db: Session = Depends(get_db)):
+def get_etapo_lakstai(etapas: str, token: str = "", db: Session = Depends(get_db)):
     items = db.query(Lakstai).filter(Lakstai.etapas == etapas).all()
     return {"orders": [_lk(l) for l in items]}
 
@@ -256,7 +256,7 @@ def delete_lakstas(kodas: str, db: Session = Depends(get_db)):
 # ════ DXF API ════
 
 @app.get("/api/uzsakymai")
-def get_uzsakymai(db: Session = Depends(get_db)):
+def get_uzsakymai(token: str = "", db: Session = Depends(get_db)):
     items = db.query(Uzsakymas).order_by(Uzsakymas.sukurta.desc()).all()
     return {"orders": [_uzs(u) for u in items]}
 
@@ -282,7 +282,7 @@ def delete_uzsakymas(uzs_id: str, db: Session = Depends(get_db)):
     return {"success": True}
 
 @app.get("/api/uzsakymai/{uzs_id}/detales")
-def get_detales(uzs_id: str, db: Session = Depends(get_db)):
+def get_detales(uzs_id: str, token: str = "", db: Session = Depends(get_db)):
     items = db.query(Detale).filter(Detale.uzsakymo_id == uzs_id).order_by(Detale.storis, Detale.pavadinimas).all()
     return {"details": [_det(d) for d in items]}
 
@@ -329,7 +329,7 @@ def delete_detale(det_id: str, db: Session = Depends(get_db)):
 # ════ SANDELIS API ════
 
 @app.get("/api/sandelis")
-def get_sandelis(db: Session = Depends(get_db)):
+def get_sandelis(token: str = "", db: Session = Depends(get_db)):
     items = db.query(Sandelis).order_by(Sandelis.storis).all()
     return {"stock": [_stk(s) for s in items]}
 
@@ -380,7 +380,7 @@ def delete_stk(stk_id: str, db: Session = Depends(get_db)):
     return {"success": True}
 
 @app.get("/api/sandelis/istorija")
-def get_istorija(db: Session = Depends(get_db)):
+def get_istorija(token: str = "", db: Session = Depends(get_db)):
     items = db.query(SandelioIstorijia).order_by(SandelioIstorijia.data.desc()).limit(100).all()
     return {"history": [{"data": h.data.strftime("%Y-%m-%d %H:%M"), "veiksmas": h.veiksmas,
                           "storis": h.storis, "matmenys": h.matmenys, "kiekis": h.kiekis,
@@ -390,7 +390,7 @@ def get_istorija(db: Session = Depends(get_db)):
 # ════ ATASKAITA ════
 
 @app.get("/api/ataskaita")
-def ataskaita(nuo: str, iki: str, db: Session = Depends(get_db)):
+def ataskaita(nuo: str, iki: str, token: str = "", db: Session = Depends(get_db)):
     from_dt = datetime.strptime(nuo, "%Y-%m-%d")
     to_dt = datetime.strptime(iki, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
     lk_gauta = db.query(Lakstai).filter(Lakstai.registruota.between(from_dt, to_dt)).count()
