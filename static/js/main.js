@@ -342,19 +342,15 @@ async function lkDel(k) {
 
 function genPdfReport() {
   const surinkti = sortLk(lkOrders.filter(o => o.collected && !o.delivered));
-  const perduoti = sortLk(lkOrders.filter(o => o.delivered));
-  const laukia = sortLk(lkOrders.filter(o => !o.collected));
   const now = new Date().toLocaleDateString('lt-LT') + ' ' + new Date().toTimeString().slice(0,5);
-  function tableRows(arr, color) {
+  function tableRows(arr) {
     if (!arr.length) return '<tr><td colspan="2" style="color:#aaa">Tuscia</td></tr>';
-    return arr.map(o => '<tr><td style="padding:4px 10px;border-bottom:1px solid #eee;font-family:monospace">' + o.kodas + '</td><td style="padding:4px 10px;color:' + color + '">' + (o.delivered ? o.deliveredAt : o.collected ? o.collectedAt : o.registered || '').slice(11,16) + '</td></tr>').join('');
+    return arr.map((o,i) => '<tr style="background:'+(i%2===0?'#fff':'#f9f9f9')+'"><td style="padding:4px 10px;border-bottom:1px solid #eee;font-family:monospace;font-weight:700">' + o.kodas + '</td><td style="padding:4px 10px;color:#1a7f37">' + (o.collectedAt||'').slice(11,16) + '</td></tr>').join('');
   }
-  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;margin:0;padding:12mm}h1{font-size:16pt;font-weight:900}h2{font-size:11pt;font-weight:700;margin:6mm 0 2mm;padding:2mm 4mm;border-left:4px solid #0969da}h2.g{border-left-color:#1a7f37}h2.b{border-left-color:#0969da}h2.y{border-left-color:#9a6700}table{width:100%;border-collapse:collapse;margin-bottom:4mm}th{background:#1e3a5f;color:white;padding:2mm 4mm;text-align:left;font-size:9pt}td{padding:2mm 4mm;font-size:9pt}.sum{display:flex;gap:8mm;margin:4mm 0;padding:3mm;background:#f5f5f5}.sum-n{font-size:18pt;font-weight:900;font-family:monospace}.sum-l{font-size:8pt;color:#666;text-transform:uppercase}@page{margin:8mm;size:A4}</style></head><body>'
+  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;margin:0;padding:12mm}h1{font-size:16pt;font-weight:900}h2{font-size:11pt;font-weight:700;margin:6mm 0 2mm;padding:2mm 4mm;border-left:4px solid #1a7f37;color:#1a7f37}table{width:100%;border-collapse:collapse;margin-bottom:4mm}th{background:#1e3a5f;color:white;padding:2mm 4mm;text-align:left;font-size:9pt}td{padding:2mm 4mm;font-size:9pt}.sum{display:flex;gap:8mm;margin:4mm 0;padding:3mm;background:#f5f5f5}.sum-n{font-size:18pt;font-weight:900;font-family:monospace}.sum-l{font-size:8pt;color:#666;text-transform:uppercase}@page{margin:8mm;size:A4}</style></head><body>'
     + '<h1>' + (curEtapas || 'Ataskaita') + '</h1><div style="font-size:9pt;color:#666;margin-bottom:4mm">' + now + '</div>'
-    + '<div class="sum"><div><div class="sum-n" style="color:#1f2328">' + lkOrders.length + '</div><div class="sum-l">Is viso</div></div><div><div class="sum-n" style="color:#1a7f37">' + surinkti.length + '</div><div class="sum-l">Surinkta</div></div><div><div class="sum-n" style="color:#0969da">' + perduoti.length + '</div><div class="sum-l">Perduota</div></div><div><div class="sum-n" style="color:#9a6700">' + laukia.length + '</div><div class="sum-l">Laukia</div></div></div>'
-    + '<h2 class="g">Surinkta (' + surinkti.length + ')</h2><table><tr><th>Kodas</th><th>Laikas</th></tr>' + tableRows(surinkti,'#1a7f37') + '</table>'
-    + '<h2 class="b">Perduota (' + perduoti.length + ')</h2><table><tr><th>Kodas</th><th>Laikas</th></tr>' + tableRows(perduoti,'#0969da') + '</table>'
-    + '<h2 class="y">Laukia (' + laukia.length + ')</h2><table><tr><th>Kodas</th><th>Laikas</th></tr>' + tableRows(laukia,'#9a6700') + '</table>'
+    + '<div class="sum"><div><div class="sum-n" style="color:#1a7f37">' + surinkti.length + '</div><div class="sum-l">Surinkta</div></div></div>'
+    + '<h2>Surinkti paketai (' + surinkti.length + ')</h2><table><tr><th>Kodas</th><th>Surinkta</th></tr>' + tableRows(surinkti) + '</table>'
     + '</body></html>';
   var blob = new Blob([html], {type: 'text/html'});
   var url = URL.createObjectURL(blob);
@@ -365,6 +361,59 @@ function genPdfReport() {
 }
 
 // ════ SANDĖLIS ════
+function showLabel(storis, matmenys, svorisVnt) {
+  const modal = document.getElementById('labelModal');
+  document.getElementById('lblStoris').textContent = storis + 'mm';
+  document.getElementById('lblMatmenys').textContent = matmenys + 'mm';
+  document.getElementById('lblSvoris').textContent = svorisVnt + ' kg';
+  document.getElementById('lblStoVal').value = storis;
+  document.getElementById('lblMatVal').value = matmenys;
+  document.getElementById('lblSvorVal').value = svorisVnt;
+  document.getElementById('lblQty').value = 1;
+  modal.style.display = 'flex';
+}
+
+function printLabels() {
+  const storis = document.getElementById('lblStoVal').value;
+  const matmenys = document.getElementById('lblMatVal').value;
+  const svoris = document.getElementById('lblSvorVal').value;
+  const qty = parseInt(document.getElementById('lblQty').value) || 1;
+  const barcodeVal = storis + 'mm-' + matmenys;
+  let labelsHtml = '';
+  for (let i = 0; i < qty; i++) {
+    labelsHtml += `
+      <div class="lbl">
+        <div class="lbl-top">${storis}mm</div>
+        <div class="lbl-mid">${matmenys}mm</div>
+        <div class="lbl-bot">${parseFloat(svoris).toFixed(2)} kg/vnt</div>
+        <svg class="lbl-bc" id="lbc${i}"></svg>
+      </div>`;
+  }
+  const w = window.open('','_blank');
+  if(!w){alert('Leiskite popup langus!');return;}
+  w.document.open();
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"><\/script>
+  <style>
+    body{margin:0;padding:4mm;font-family:Arial,sans-serif}
+    .lbl{display:inline-block;width:80mm;border:1px solid #000;padding:3mm;margin:2mm;vertical-align:top;page-break-inside:avoid}
+    .lbl-top{font-size:28pt;font-weight:900;text-align:center;letter-spacing:2px}
+    .lbl-mid{font-size:14pt;font-weight:700;text-align:center;color:#333;margin:1mm 0}
+    .lbl-bot{font-size:11pt;text-align:center;color:#555;margin-bottom:2mm}
+    .lbl-bc{display:block;margin:0 auto;width:100%}
+    @media print{@page{margin:4mm}}
+  </style></head><body>
+  ${labelsHtml}
+  <script>
+    document.querySelectorAll('[id^="lbc"]').forEach(function(el){
+      try{JsBarcode(el,'${barcodeVal}',{format:'CODE128',width:2,height:40,displayValue:true,fontSize:10,margin:2});}catch(e){}
+    });
+    setTimeout(function(){window.print();},500);
+  <\/script></body></html>`);
+  w.document.close();
+  CM('labelModal');
+}
+
 async function loadStock() {
   try { const r = await api('GET', '/api/sandelis'); stock = r.stock || []; rStock(); document.getElementById('stkBdg').textContent = stock.length; } catch(e) {}
 }
@@ -393,6 +442,7 @@ function rStock() {
       + '<div><div class="stk-num" style="font-size:12px;color:var(--tx2)">' + r.likoT.toFixed(3) + '</div><div class="stk-sub">t</div></div>'
       + '<div><div class="stk-val">' + r.verte.toFixed(2) + 'EUR</div><div class="stk-sub">' + (r.kainaKg>0?r.kainaKg+'EUR/t':'') + '</div></div>'
       + '<div class="stk-acts"><button class="btn btn-y btn-sm" onclick="showUse(\'' + r.id + '\',\'' + r.storis + 'mm ' + r.matmenys + '\',' + r.likoVnt + ')">-</button>'
+      + '<button class="btn btn-s btn-sm" onclick="showLabel(\'' + r.storis + '\',\'' + r.matmenys + '\',\'' + r.svorisVnt + '\')">&#x1F3F7;</button>'
       + '<button class="btn btn-d btn-sm" onclick="delStk(\'' + r.id + '\')">x</button></div></div>';
   }).join('') + '<div class="stk-tot"><div style="font-family:monospace;font-size:10px;font-weight:700">VISO</div><div></div>'
     + '<div><div class="stk-num" style="font-size:13px;color:var(--ac)">' + totVnt + '</div><div class="stk-sub">vnt.</div></div>'
