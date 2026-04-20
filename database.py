@@ -115,6 +115,12 @@ def init_db():
             conn.execute(text("ALTER TABLE detales ADD COLUMN IF NOT EXISTS kaina_kg FLOAT DEFAULT 1.45"))
             conn.execute(text("ALTER TABLE detales ADD COLUMN IF NOT EXISTS suma FLOAT DEFAULT 0"))
             conn.execute(text("ALTER TABLE uzsakymai ADD COLUMN IF NOT EXISTS bendra_suma FLOAT DEFAULT 0"))
+            conn.execute(text("ALTER TABLE sandelio_istorija ADD COLUMN IF NOT EXISTS kaina_kg FLOAT DEFAULT 0"))
+            conn.execute(text("ALTER TABLE sandelio_istorija ADD COLUMN IF NOT EXISTS verte FLOAT DEFAULT 0"))
+            conn.execute(text("ALTER TABLE sandelio_istorija ADD COLUMN IF NOT EXISTS pastabos VARCHAR(500)"))
+            conn.execute(text("ALTER TABLE sandelis ADD COLUMN IF NOT EXISTS kaina_kg FLOAT DEFAULT 0"))
+            conn.execute(text("ALTER TABLE sandelis ADD COLUMN IF NOT EXISTS verte FLOAT DEFAULT 0"))
+            conn.execute(text("ALTER TABLE sandelis ADD COLUMN IF NOT EXISTS pastabos VARCHAR(500)"))
             conn.commit()
         except Exception:
             pass
