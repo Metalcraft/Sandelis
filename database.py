@@ -118,9 +118,16 @@ def init_db():
             conn.execute(text("ALTER TABLE sandelio_istorija ADD COLUMN IF NOT EXISTS kaina_kg FLOAT DEFAULT 0"))
             conn.execute(text("ALTER TABLE sandelio_istorija ADD COLUMN IF NOT EXISTS verte FLOAT DEFAULT 0"))
             conn.execute(text("ALTER TABLE sandelio_istorija ADD COLUMN IF NOT EXISTS pastabos VARCHAR(500)"))
+            conn.execute(text("ALTER TABLE sandelio_istorija ADD COLUMN IF NOT EXISTS svoris_is_viso FLOAT DEFAULT 0"))
+            conn.execute(text("ALTER TABLE sandelio_istorija ADD COLUMN IF NOT EXISTS svoris_vnt FLOAT DEFAULT 0"))
+            conn.execute(text("ALTER TABLE sandelio_istorija ADD COLUMN IF NOT EXISTS kiekis INTEGER DEFAULT 0"))
+            conn.execute(text("ALTER TABLE sandelio_istorija ADD COLUMN IF NOT EXISTS storis FLOAT DEFAULT 0"))
+            conn.execute(text("ALTER TABLE sandelio_istorija ADD COLUMN IF NOT EXISTS matmenys VARCHAR(100)"))
+            conn.execute(text("ALTER TABLE sandelio_istorija ADD COLUMN IF NOT EXISTS veiksmas VARCHAR(50)"))
             conn.execute(text("ALTER TABLE sandelis ADD COLUMN IF NOT EXISTS kaina_kg FLOAT DEFAULT 0"))
             conn.execute(text("ALTER TABLE sandelis ADD COLUMN IF NOT EXISTS verte FLOAT DEFAULT 0"))
             conn.execute(text("ALTER TABLE sandelis ADD COLUMN IF NOT EXISTS pastabos VARCHAR(500)"))
+            conn.execute(text("ALTER TABLE sandelis ADD COLUMN IF NOT EXISTS sunaudota_vnt INTEGER DEFAULT 0"))
             conn.commit()
         except Exception:
             pass
