@@ -106,6 +106,23 @@ class SandelioIstorijia(Base):
     verte = Column(Float, default=0)
     pastabos = Column(String(500), nullable=True)
 
+class Vartotojas(Base):
+    __tablename__ = "vartotojai"
+    id = Column(Integer, primary_key=True)
+    vardas = Column(String(100), unique=True, nullable=False)
+    role = Column(String(20), default="darbuotojas")  # admin arba darbuotojas
+    pin_hash = Column(String(200), nullable=True)
+    slaptazodis_hash = Column(String(200), nullable=True)
+    sukurta = Column(DateTime, default=datetime.utcnow)
+
+class Sesija(Base):
+    __tablename__ = "sesijos"
+    id = Column(Integer, primary_key=True)
+    token = Column(String(200), unique=True, index=True)
+    vartotojas_id = Column(Integer, ForeignKey("vartotojai.id"))
+    sukurta = Column(DateTime, default=datetime.utcnow)
+    galioja_iki = Column(DateTime)
+
 def init_db():
     Base.metadata.create_all(bind=engine)
     # Prideti trukstamus stulpelius jei ju nera (migracija)
@@ -131,3 +148,22 @@ def init_db():
             conn.commit()
         except Exception:
             pass
+    # Sukurti numatytuosius vartotojus jei nera
+    from sqlalchemy.orm import Session as OrmSession
+    db = OrmSession(bind=engine)
+    try:
+        if not db.query(Vartotojas).filter(Vartotojas.vardas == "admin").first():
+            import hashlib
+            admin = Vartotojas(vardas="admin", role="admin",
+                slaptazodis_hash=hashlib.sha256("admin123".encode()).hexdigest())
+            db.add(admin)
+        if not db.query(Vartotojas).filter(Vartotojas.vardas == "darbuotojas").first():
+            import hashlib
+            darb = Vartotojas(vardas="darbuotojas", role="darbuotojas",
+                pin_hash=hashlib.sha256("1234".encode()).hexdigest())
+            db.add(darb)
+        db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
