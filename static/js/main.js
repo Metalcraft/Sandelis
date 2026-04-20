@@ -137,8 +137,10 @@ async function loadEtapai() {
     rEtapai();
     document.getElementById('connDot').className = 'dot ok';
   } catch(e) {
-    document.getElementById('connDot').className = 'dot err';
-    toast('Klaida jungiantis', true);
+    if (!e.message.includes('401')) {
+      document.getElementById('connDot').className = 'dot err';
+      toast('Klaida jungiantis', true);
+    }
   }
 }
 
