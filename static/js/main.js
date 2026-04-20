@@ -9,12 +9,55 @@ let dxfOrders = [], dxfDets = [], curOrd = null, curArea = 0, curContour = '';
 let stock = [], history = [], lkLC = null, lkLT = 0;
 let settings = {defaultPrice: 0, lowAlert: 2, dxfKaina: 1.45};
 
+// ════ AUTH ════
+function getToken() {
+  const m = document.cookie.match(/stoken=([^;]+)/);
+  return m ? m[1] : '';
+}
+function getRole() { return localStorage.getItem('srole') || ''; }
+function getVardas() { return localStorage.getItem('svardas') || ''; }
+
+async function checkAuth() {
+  const token = getToken();
+  if(!token) { window.location.href='/login'; return; }
+  try {
+    const r = await fetch('/api/auth/me?token='+token);
+    if(!r.ok) { window.location.href='/login'; return; }
+    const d = await r.json();
+    localStorage.setItem('srole', d.role);
+    localStorage.setItem('svardas', d.vardas);
+    // Darbuotojas mato tik lakstus
+    if(d.role === 'darbuotojas') {
+      document.querySelectorAll('.tab').forEach(t => {
+        if(!t.id || t.id === 'tab-lk') return;
+        t.style.display = 'none';
+      });
+      SW('lk');
+    }
+    // Rodyti vartotoja
+    const vEl = document.getElementById('vardasEl');
+    if(vEl) vEl.textContent = d.vardas;
+  } catch(e) { window.location.href='/login'; }
+}
+
+async function logout() {
+  const token = getToken();
+  await fetch('/api/auth/logout', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token})});
+  document.cookie = 'stoken=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+  localStorage.removeItem('srole');
+  localStorage.removeItem('svardas');
+  window.location.href='/login';
+}
+
 // ════ API ════
 async function api(method, url, data) {
-  const r = await fetch(url, {
+  const token = getToken();
+  const sep = url.includes('?') ? '&' : '?';
+  const fullUrl = method === 'GET' ? url + sep + 'token=' + token : url;
+  const r = await fetch(fullUrl, {
     method,
     headers: {'Content-Type': 'application/json'},
-    body: data ? JSON.stringify(data) : undefined
+    body: data ? JSON.stringify({...( data || {}), token}) : JSON.stringify({token})
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
@@ -22,6 +65,7 @@ async function api(method, url, data) {
 
 // ════ INIT ════
 window.onload = async () => {
+  await checkAuth();
   const saved = localStorage.getItem('sandSettings');
   if (saved) try { settings = JSON.parse(saved); } catch(e) {}
   const lt = localStorage.getItem('lastThick');
@@ -509,7 +553,35 @@ function saveSett() {
   settings.defaultPrice=parseFloat(document.getElementById('settP').value)||0;
   settings.lowAlert=parseInt(document.getElementById('settL').value)||2;
   settings.dxfKaina=parseFloat(document.getElementById('settDxf').value)||1.45;
-  CM('settModal'); localStorage.setItem('sandSettings',JSON.stringify(settings)); toast('Issaugota');
+  CM('settModal'); localStorage.setItem('sandSettings',JSON.stringify(settings)); toast('Išsaugota');
+}
+
+async function saveSecurity() {
+  const newPass = document.getElementById('settNewPass').value;
+  const newPin = document.getElementById('settNewPin').value;
+  const token = getToken();
+  if(newPass) {
+    if(newPass.length < 4) { toast('Per trumpas slaptažodis!', true); return; }
+    await api('PUT', '/api/auth/slaptazodis', {token, slaptazodis: newPass});
+    document.getElementById('settNewPass').value = '';
+    toast('Slaptažodis pakeistas!');
+  }
+  if(newPin) {
+    if(newPin.length !== 4 || isNaN(newPin)) { toast('PIN turi būti 4 skaitmenys!', true); return; }
+    await api('PUT', '/api/auth/pin', {token, pin: newPin});
+    document.getElementById('settNewPin').value = '';
+    toast('PIN pakeistas!');
+  }
+}
+
+function showSett() {
+  document.getElementById('settP').value=settings.defaultPrice||'';
+  document.getElementById('settL').value=settings.lowAlert||2;
+  document.getElementById('settDxf').value=settings.dxfKaina||1.45;
+  // Slėpti admin nustatymus darbuotojui
+  const adminSett = document.getElementById('adminSett');
+  if(adminSett) adminSett.style.display = getRole()==='admin' ? '' : 'none';
+  document.getElementById('settModal').style.display='flex';
 }
 
 // ════ DXF ════
