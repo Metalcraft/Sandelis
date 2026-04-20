@@ -149,7 +149,7 @@
         <div class="wp"><div class="wv" id="wPv">0.000</div><div class="wl">kg (vieno vnt.)</div><div class="wa" id="wAr"></div></div>
         <div class="fgrid">
           <div><label class="fl">Pavadinimas</label><input type="text" id="dName"></div>
-          <div><label class="fl">Storis (mm)</label><select id="dThk" onchange="rcW();localStorage.setItem('lastThick',this.value)"><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="8">8</option><option value="10">10</option><option value="12">12</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="18">18</option><option value="20">20</option><option value="25">25</option></select></div>
+          <div><label class="fl">Storis (mm)</label><select id="dThk" onchange="rcW();localStorage.setItem('lastThick',this.value)"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="8">8</option><option value="10">10</option><option value="12">12</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="18">18</option><option value="20">20</option><option value="25">25</option></select></div>
           <div><label class="fl">Kiekis</label><input type="number" id="dQty" value="1" min="1" oninput="rcW()"></div>
         </div>
         <button class="btn btn-p" style="width:100%" onclick="addDet()">+ Prideti detale</button>
@@ -158,7 +158,7 @@
         <div class="mlbl">arba ivesk rankiniu budu</div>
         <div class="fgrid">
           <div><label class="fl">Pavadinimas</label><input type="text" id="mName"></div>
-          <div><label class="fl">Storis (mm)</label><select id="mThk" onchange="rcM();localStorage.setItem('lastThick',this.value)"><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="8">8</option><option value="10">10</option><option value="12">12</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="18">18</option><option value="20">20</option><option value="25">25</option></select></div>
+          <div><label class="fl">Storis (mm)</label><select id="mThk" onchange="rcM();localStorage.setItem('lastThick',this.value)"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="8">8</option><option value="10">10</option><option value="12">12</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="18">18</option><option value="20">20</option><option value="25">25</option></select></div>
           <div><label class="fl">Plotas (cm2)</label><input type="number" id="mArea" step="0.01" oninput="rcM()"></div>
         </div>
         <div class="fgrid">
@@ -223,7 +223,7 @@
   <div class="modal">
     <div class="mh">Gauti lakstus</div>
     <div class="mf">
-      <div><label class="fl">Storis (mm)</label><select id="recThk"><option value="3">3 mm</option><option value="4">4 mm</option><option value="5">5 mm</option><option value="6">6 mm</option><option value="8">8 mm</option><option value="10">10 mm</option><option value="12">12 mm</option><option value="14">14 mm</option><option value="15">15 mm</option><option value="16">16 mm</option><option value="18">18 mm</option><option value="20">20 mm</option><option value="25">25 mm</option></select></div>
+      <div><label class="fl">Storis (mm)</label><select id="recThk"><option value="1">1 mm</option><option value="2">2 mm</option><option value="3">3 mm</option><option value="4">4 mm</option><option value="5">5 mm</option><option value="6">6 mm</option><option value="8">8 mm</option><option value="10">10 mm</option><option value="12">12 mm</option><option value="14">14 mm</option><option value="15">15 mm</option><option value="16">16 mm</option><option value="18">18 mm</option><option value="20">20 mm</option><option value="25">25 mm</option></select></div>
       <div class="fgrid" style="grid-template-columns:1fr 1fr">
         <div><label class="fl">Plotis (mm)</label><input type="number" id="recW" oninput="rcRecv()"></div>
         <div><label class="fl">Ilgis (mm)</label><input type="number" id="recL" oninput="rcRecv()"></div>
@@ -285,8 +285,24 @@
 
 <div class="toast" id="toast"></div>
 
+<div class="mbg" id="labelModal" style="display:none">
+  <div class="modal">
+    <div class="mh">&#x1F3F7; Spausdinti etiketes</div>
+    <div class="mf">
+      <div class="rec-prev" style="text-align:center;font-size:18px;font-weight:700;letter-spacing:2px">
+        <span id="lblStoris"></span> &nbsp;|&nbsp; <span id="lblMatmenys"></span> &nbsp;|&nbsp; <span id="lblSvoris"></span>
+      </div>
+      <input type="hidden" id="lblStoVal">
+      <input type="hidden" id="lblMatVal">
+      <input type="hidden" id="lblSvorVal">
+      <div><label class="fl">Kiek etikeciu spausdinti?</label><input type="number" id="lblQty" value="1" min="1" max="100" style="width:80px"></div>
+      <div class="mb"><button class="btn btn-s" onclick="CM('labelModal')">Atsaukti</button><button class="btn btn-p" onclick="printLabels()">&#x1F5A8; Spausdinti</button></div>
+    </div>
+  </div>
+</div>
+
 <script>
-const STORIAI=[3,4,5,6,8,10,12,14,15,16,18,20,25];
+const STORIAI=[1,2,3,4,5,6,8,10,12,14,15,16,18,20,25];
 const TANKIS=8000;
 </script>
 <script src="/static/js/dxf.js"></script>
