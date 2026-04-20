@@ -8,10 +8,33 @@ from datetime import datetime
 from typing import Optional
 import os
 
-from database import get_db, init_db, Lakstai, AktyvusEtapas, Etapas, Uzsakymas, Detale, Sandelis, SandelioIstorijia
+from database import get_db, init_db, Lakstai, AktyvusEtapas, Etapas, Uzsakymas, Detale, Sandelis, SandelioIstorijia, Vartotojas, Sesija
 
 app = FastAPI(title="Sandelio Sistema")
 TANKIS = 8000
+import hashlib, secrets
+from datetime import timedelta
+from fastapi import Cookie
+from fastapi.responses import RedirectResponse
+
+def hash_str(s): return hashlib.sha256(s.encode()).hexdigest()
+
+def get_session(token: str, db):
+    if not token: return None
+    now = datetime.utcnow()
+    s = db.query(Sesija).filter(Sesija.token == token, Sesija.galioja_iki > now).first()
+    if not s: return None
+    return db.query(Vartotojas).filter(Vartotojas.id == s.vartotojas_id).first()
+
+def require_admin(token: str, db):
+    u = get_session(token, db)
+    if not u or u.role != "admin": raise HTTPException(401, "Neprisijungta")
+    return u
+
+def require_any(token: str, db):
+    u = get_session(token, db)
+    if not u: raise HTTPException(401, "Neprisijungta")
+    return u
 
 import pathlib
 pathlib.Path("static/css").mkdir(parents=True, exist_ok=True)
@@ -43,6 +66,69 @@ async def icon():
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
+
+# ════ AUTH API ════
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
+
+@app.post("/api/auth/login")
+def login(data: dict, db: Session = Depends(get_db)):
+    vardas = data.get("vardas", "").strip()
+    slaptazodis = data.get("slaptazodis", "")
+    pin = data.get("pin", "")
+    remember = data.get("remember", False)
+    u = db.query(Vartotojas).filter(Vartotojas.vardas == vardas).first()
+    if not u: raise HTTPException(401, "Neteisingi duomenys")
+    if pin:
+        if not u.pin_hash or u.pin_hash != hash_str(pin):
+            raise HTTPException(401, "Neteisingas PIN")
+    else:
+        if not u.slaptazodis_hash or u.slaptazodis_hash != hash_str(slaptazodis):
+            raise HTTPException(401, "Neteisingas slaptazodis")
+    token = secrets.token_hex(32)
+    days = 30 if remember else 1
+    s = Sesija(token=token, vartotojas_id=u.id, galioja_iki=datetime.utcnow()+timedelta(days=days))
+    db.add(s); db.commit()
+    return {"success": True, "token": token, "role": u.role, "vardas": u.vardas, "days": days}
+
+@app.post("/api/auth/logout")
+def logout(data: dict, db: Session = Depends(get_db)):
+    token = data.get("token", "")
+    db.query(Sesija).filter(Sesija.token == token).delete()
+    db.commit()
+    return {"success": True}
+
+@app.get("/api/auth/me")
+def me(token: str = "", db: Session = Depends(get_db)):
+    u = get_session(token, db)
+    if not u: raise HTTPException(401, "Neprisijungta")
+    return {"vardas": u.vardas, "role": u.role}
+
+@app.put("/api/auth/pin")
+def change_pin(data: dict, db: Session = Depends(get_db)):
+    token = data.get("token", "")
+    u = require_admin(token, db)
+    new_pin = data.get("pin", "")
+    if len(new_pin) != 4 or not new_pin.isdigit():
+        raise HTTPException(400, "PIN turi buti 4 skaitmenys")
+    darb = db.query(Vartotojas).filter(Vartotojas.role == "darbuotojas").first()
+    if darb:
+        darb.pin_hash = hash_str(new_pin)
+        db.commit()
+    return {"success": True}
+
+@app.put("/api/auth/slaptazodis")
+def change_slaptazodis(data: dict, db: Session = Depends(get_db)):
+    token = data.get("token", "")
+    u = require_admin(token, db)
+    new_pass = data.get("slaptazodis", "")
+    if len(new_pass) < 4:
+        raise HTTPException(400, "Per trumpas slaptazodis")
+    u.slaptazodis_hash = hash_str(new_pass)
+    db.commit()
+    return {"success": True}
 
 # ════ ETAPAI API ════
 
