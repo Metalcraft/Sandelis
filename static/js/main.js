@@ -53,11 +53,13 @@ async function logout() {
 async function api(method, url, data) {
   const token = getToken();
   const sep = url.includes('?') ? '&' : '?';
-  const fullUrl = method === 'GET' ? url + sep + 'token=' + token : url;
+  const fullUrl = method === 'GET'
+    ? url + sep + 'token=' + token
+    : url;
   const r = await fetch(fullUrl, {
     method,
     headers: {'Content-Type': 'application/json'},
-    body: data ? JSON.stringify({...( data || {}), token}) : JSON.stringify({token})
+    body: method === 'GET' ? undefined : JSON.stringify({...(data || {}), token})
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
