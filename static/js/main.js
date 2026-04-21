@@ -452,6 +452,15 @@ function showLabel(storis, matmenys) {
   modal.style.display = 'flex';
 }
 
+function genBarcodeSVG(val, w, h) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  try { JsBarcode(svg, val, {format:'CODE128',width:2,height:h||55,displayValue:false,margin:0}); }
+  catch(e) { svg.setAttribute('width', w||200); svg.setAttribute('height', h||55); }
+  svg.style.width = '100%';
+  return svg.outerHTML;
+}
+
 function printLabels() {
   const storis = document.getElementById('lblStoVal').value;
   const matmenys = document.getElementById('lblMatVal').value;
