@@ -24,7 +24,8 @@
     <button class="tab" onclick="SW('dxf')" id="tab-dxf">DXF <span class="bdg gray" id="dxfBdg">0</span></button>
     <button class="tab" onclick="SW('arch')" id="tab-arch">Archyvai <span class="bdg gray" id="archBdg">0</span></button>
     <button class="tab" onclick="SW('rep')" id="tab-rep">Ataskaita</button>
-    <button class="tab" onclick="SW('etk')" id="tab-etk">&#x1F3F7; Etiketes</button>
+    <button class="tab" onclick="SW('lik')" id="tab-lik">&#x267B; Likučiai</button>
+    <button class="tab" onclick="SW('etk')" id="tab-etk">&#x1F3F7; Etiketės</button>
   </div>
   <div class="nav-r" style="display:flex;align-items:center;gap:8px"><button id="installBtn" class="btn btn-s btn-sm" style="display:none" onclick="installApp()">📲 Įdiegti</button><div class="dot ok" id="connDot"></div><span id="vardasEl" style="font-size:12px;color:var(--tx2);font-weight:600"></span><button class="btn btn-s btn-sm" onclick="logout()">Atsijungti</button></div>
 </nav>
@@ -211,6 +212,35 @@
   </div>
 </div>
 
+<div class="view" id="view-lik">
+  <div class="page-wrap">
+    <div class="ph">
+      <div><div class="ph-t">♻ Likučių sandėlis</div><div class="ph-s">Individualūs lakštų likučiai</div></div>
+      <button class="btn btn-p" onclick="showNewLik()">+ Pridėti likutį</button>
+    </div>
+    <!-- Statistika -->
+    <div class="stk-sum" id="likSum"></div>
+    <!-- Skanavimas -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="ct">Skanavimas</div>
+      <div class="scan-f"><span class="scan-ico">&#9638;</span><input class="scan-inp" id="likScanInp" placeholder="Skanuok likučio barkodą..." autocomplete="off" onkeydown="if(event.key==='Enter')likScan()"></div>
+      <div id="likScanRes" style="display:none;margin-top:8px"></div>
+    </div>
+    <!-- Filtrai -->
+    <div class="fbar">
+      <button class="fb active" onclick="likFlt('visi',this)">Visi</button>
+      <button class="fb" onclick="likFlt('liko',this)">Liko</button>
+      <button class="fb" onclick="likFlt('sunaudota',this)">Sunaudoti</button>
+      <input class="si" id="likSrch" placeholder="Ieškoti..." oninput="rLik()">
+    </div>
+    <!-- Sąrašas -->
+    <div class="card" style="overflow:hidden;padding:0">
+      <div class="card-h"><span class="card-t">Likučiai</span><button class="btn btn-s btn-sm" onclick="loadLik()">&#x21BB;</button></div>
+      <div id="likTbl"><div class="empty-s">Dar nėra likučių</div></div>
+    </div>
+  </div>
+</div>
+
 <div class="view" id="view-etk">
   <div class="page-wrap">
     <div class="ph-t" style="margin-bottom:14px">&#x1F3F7; Etikeciu spausdinimas</div>
@@ -318,6 +348,22 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="mbg" id="likModal" style="display:none">
+  <div class="modal">
+    <div class="mh">Naujas likutis</div>
+    <div class="mf">
+      <div class="fgrid" style="grid-template-columns:1fr 1fr 1fr">
+        <div><label class="fl">Storis (mm)</label><select id="likThk"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="8">8</option><option value="10">10</option><option value="12">12</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="18">18</option><option value="20">20</option><option value="25">25</option></select></div>
+        <div><label class="fl">Plotis (mm)</label><input type="number" id="likW" oninput="rcLik()"></div>
+        <div><label class="fl">Ilgis (mm)</label><input type="number" id="likL" oninput="rcLik()"></div>
+      </div>
+      <div class="rec-prev" id="likPrev">Įvesk matmenis...</div>
+      <div><label class="fl">Pastabos</label><input type="text" id="likNote"></div>
+      <div class="mb"><button class="btn btn-s" onclick="CM('likModal')">Atšaukti</button><button class="btn btn-p" onclick="doAddLik()">Pridėti ir spausdinti etiketę</button></div>
+    </div>
+  </div>
+</div>
 
 <div class="mbg" id="labelModal" style="display:none">
   <div class="modal">
