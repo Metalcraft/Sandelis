@@ -166,6 +166,9 @@ function rEtapai() {
 function onEtapasChange(val) {
   curEtapas = val || null;
   if (curEtapas) {
+    // Nustatyti šiandienos datą PDF filtrui
+    const pdfDateEl = document.getElementById('pdfDate');
+    if (pdfDateEl && !pdfDateEl.value) pdfDateEl.value = new Date().toISOString().slice(0,10);
     const et = etapai.find(e => e.pavadinimas === curEtapas);
     const display = et ? et.display : curEtapas;
     document.getElementById('aktyvusLabel').textContent = display;
@@ -389,21 +392,51 @@ async function lkDel(k) {
 }
 
 function genPdfReport() {
-  const surinkti = sortLk(lkOrders.filter(o => o.collected && !o.delivered));
+  // Datos filtras
+  const dateEl = document.getElementById('pdfDate');
+  const selDate = dateEl ? dateEl.value : '';
+
+  let surinkti = sortLk(lkOrders.filter(o => o.collected && !o.delivered));
+
+  if (selDate) {
+    surinkti = surinkti.filter(o => (o.collectedAt||'').slice(0,10) === selDate);
+  }
+
   const now = new Date().toLocaleDateString('lt-LT') + ' ' + new Date().toTimeString().slice(0,5);
+  const dateLabel = selDate
+    ? new Date(selDate).toLocaleDateString('lt-LT', {weekday:'long', year:'numeric', month:'long', day:'numeric'})
+    : 'Visi surinkti';
+
   function tableRows(arr) {
-    if (!arr.length) return '<tr><td colspan="2" style="color:#aaa">Tuscia</td></tr>';
+    if (!arr.length) return '<tr><td colspan="2" style="color:#aaa">Nėra įrašų</td></tr>';
     return arr.map((o,i) => '<tr style="background:'+(i%2===0?'#fff':'#f9f9f9')+'"><td style="padding:4px 10px;border-bottom:1px solid #eee;font-family:monospace;font-weight:700">' + o.kodas + '</td><td style="padding:4px 10px;color:#1a7f37">' + (o.collectedAt||'').slice(11,16) + '</td></tr>').join('');
   }
-  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;margin:0;padding:12mm}h1{font-size:16pt;font-weight:900}h2{font-size:11pt;font-weight:700;margin:6mm 0 2mm;padding:2mm 4mm;border-left:4px solid #1a7f37;color:#1a7f37}table{width:100%;border-collapse:collapse;margin-bottom:4mm}th{background:#1e3a5f;color:white;padding:2mm 4mm;text-align:left;font-size:9pt}td{padding:2mm 4mm;font-size:9pt}.sum{display:flex;gap:8mm;margin:4mm 0;padding:3mm;background:#f5f5f5}.sum-n{font-size:18pt;font-weight:900;font-family:monospace}.sum-l{font-size:8pt;color:#666;text-transform:uppercase}@page{margin:8mm;size:A4}</style></head><body>'
-    + '<h1>' + (curEtapas || 'Ataskaita') + '</h1><div style="font-size:9pt;color:#666;margin-bottom:4mm">' + now + '</div>'
-    + '<div class="sum"><div><div class="sum-n" style="color:#1a7f37">' + surinkti.length + '</div><div class="sum-l">Surinkta</div></div></div>'
-    + '<h2>Surinkti paketai (' + surinkti.length + ')</h2><table><tr><th>Kodas</th><th>Surinkta</th></tr>' + tableRows(surinkti) + '</table>'
+
+  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'
+    + 'body{font-family:Arial,sans-serif;margin:0;padding:12mm}'
+    + 'h1{font-size:16pt;font-weight:900;margin-bottom:2mm}'
+    + 'h2{font-size:11pt;font-weight:700;margin:6mm 0 2mm;padding:2mm 4mm;border-left:4px solid #1a7f37;color:#1a7f37}'
+    + 'table{width:100%;border-collapse:collapse;margin-bottom:4mm}'
+    + 'th{background:#1e3a5f;color:white;padding:2mm 4mm;text-align:left;font-size:9pt}'
+    + 'td{padding:2mm 4mm;font-size:9pt}'
+    + '.meta{font-size:9pt;color:#666;margin-bottom:4mm}'
+    + '.sum{display:inline-block;background:#e6f4ea;border:1px solid #1a7f37;border-radius:6px;padding:3mm 6mm;margin-bottom:4mm}'
+    + '.sum-n{font-size:20pt;font-weight:900;color:#1a7f37;font-family:monospace}'
+    + '.sum-l{font-size:8pt;color:#666;text-transform:uppercase}'
+    + '@page{margin:8mm;size:A4}'
+    + '</style></head><body>'
+    + '<h1>' + (curEtapas || 'Ataskaita') + '</h1>'
+    + '<div class="meta">📅 ' + dateLabel + ' &nbsp;|&nbsp; Išspausdinta: ' + now + '</div>'
+    + '<div class="sum"><div class="sum-n">' + surinkti.length + '</div><div class="sum-l">Surinktų paketų</div></div>'
+    + '<h2>Surinkti paketai</h2>'
+    + '<table><thead><tr><th>Kodas</th><th>Surinkimo laikas</th></tr></thead><tbody>' + tableRows(surinkti) + '</tbody></table>'
     + '</body></html>';
+
   var blob = new Blob([html], {type: 'text/html'});
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
-  a.href = url; a.download = 'ataskaita_' + (curEtapas||'').replace(/\s/g,'_') + '_' + new Date().toISOString().slice(0,10) + '.html';
+  const fn = 'surinkta_' + (curEtapas||'').replace(/\s/g,'_') + (selDate?'_'+selDate:'') + '.html';
+  a.href = url; a.download = fn;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
@@ -977,4 +1010,37 @@ function etkPrint() {
     };
   <\/script></body></html>`);
   w.document.close();
+}
+
+// ════ PWA ════
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const btn = document.getElementById('installBtn');
+  if (btn) btn.style.display = 'inline-flex';
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+  const btn = document.getElementById('installBtn');
+  if (btn) btn.style.display = 'none';
+  toast('Programa įdiegta! 🎉');
+});
+
+async function installApp() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  const btn = document.getElementById('installBtn');
+  if (btn) btn.style.display = 'none';
+}
+
+// Registruoti service worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
 }
