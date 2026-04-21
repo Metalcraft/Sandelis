@@ -123,6 +123,20 @@ class Sesija(Base):
     sukurta = Column(DateTime, default=datetime.utcnow)
     galioja_iki = Column(DateTime)
 
+class Likutis(Base):
+    __tablename__ = "likuciai"
+    id = Column(Integer, primary_key=True)
+    barcode = Column(String(100), unique=True, index=True)
+    storis = Column(Float)
+    matmenys = Column(String(100))
+    plotis = Column(Float)
+    ilgis = Column(Float)
+    svoris = Column(Float, default=0)
+    sukurta = Column(DateTime, default=datetime.utcnow)
+    sunaudota = Column(Boolean, default=False)
+    sunaudota_kada = Column(DateTime, nullable=True)
+    pastabos = Column(String(500), nullable=True)
+
 def init_db():
     Base.metadata.create_all(bind=engine)
     # Prideti trukstamus stulpelius jei ju nera (migracija)
