@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Optional
 import os
 
-from database import get_db, init_db, Lakstai, AktyvusEtapas, Etapas, Uzsakymas, Detale, Sandelis, SandelioIstorijia, Vartotojas, Sesija
+from database import get_db, init_db, Lakstai, AktyvusEtapas, Etapas, Uzsakymas, Detale, Sandelis, SandelioIstorijia, Vartotojas, Sesija, Likutis
 
 app = FastAPI(title="Sandelio Sistema")
 TANKIS = 8000
@@ -353,20 +353,44 @@ def gauti(data: dict, db: Session = Depends(get_db)):
     l = float(data["ilgis"])
     qty = int(data["kiekis"])
     kaina = float(data.get("kaina") or 0)
+    matmenys = f"{int(w)}x{int(l)}"
     svoris_vnt = round((w/1000) * (l/1000) * (storis/1000) * TANKIS, 2)
-    liko_kg = round(svoris_vnt * qty, 2)
-    liko_t = round(liko_kg / 1000, 3)
-    verte = round(liko_t * kaina, 2)
-    stk_id = "STK-" + str(int(datetime.utcnow().timestamp() * 1000))
-    s = Sandelis(stk_id=stk_id, storis=storis, matmenys=f"{int(w)}x{int(l)}", svoris_vnt=svoris_vnt,
-                 gauta_vnt=qty, liko_vnt=qty, liko_kg=liko_kg, liko_t=liko_t, kaina_kg=kaina, verte=verte,
-                 pastabos=data.get("pastabos", ""))
-    db.add(s)
-    hist = SandelioIstorijia(veiksmas="Gauta", storis=storis, matmenys=f"{int(w)}x{int(l)}", kiekis=qty,
-                              svoris_vnt=svoris_vnt, svoris_is_viso=liko_kg, kaina_kg=kaina, verte=verte,
-                              pastabos=data.get("pastabos", ""))
-    db.add(hist); db.commit()
-    return {"success": True, "id": stk_id, "svorisVnt": svoris_vnt, "likoT": liko_t, "verte": verte}
+    # Tikrinti ar jau yra toks pat storis + matmenys
+    existing = db.query(Sandelis).filter(
+        Sandelis.storis == storis,
+        Sandelis.matmenys == matmenys
+    ).first()
+    if existing:
+        # Prideti prie esamo
+        existing.gauta_vnt += qty
+        existing.liko_vnt += qty
+        existing.liko_kg = round(existing.liko_vnt * existing.svoris_vnt, 2)
+        existing.liko_t = round(existing.liko_kg / 1000, 3)
+        if kaina > 0: existing.kaina_kg = kaina
+        existing.verte = round(existing.liko_t * existing.kaina_kg, 2)
+        if data.get("pastabos"): existing.pastabos = data.get("pastabos")
+        liko_kg = round(qty * svoris_vnt, 2)
+        liko_t = round(liko_kg / 1000, 3)
+        hist = SandelioIstorijia(veiksmas="Gauta", storis=storis, matmenys=matmenys, kiekis=qty,
+                                  svoris_vnt=svoris_vnt, svoris_is_viso=liko_kg, kaina_kg=kaina,
+                                  verte=round(liko_t*kaina,2), pastabos=data.get("pastabos", ""))
+        db.add(hist); db.commit()
+        return {"success": True, "id": existing.stk_id, "svorisVnt": svoris_vnt, "likoT": existing.liko_t, "verte": existing.verte, "merged": True}
+    else:
+        # Kurti nauja
+        liko_kg = round(svoris_vnt * qty, 2)
+        liko_t = round(liko_kg / 1000, 3)
+        verte = round(liko_t * kaina, 2)
+        stk_id = "STK-" + str(int(datetime.utcnow().timestamp() * 1000))
+        s = Sandelis(stk_id=stk_id, storis=storis, matmenys=matmenys, svoris_vnt=svoris_vnt,
+                     gauta_vnt=qty, liko_vnt=qty, liko_kg=liko_kg, liko_t=liko_t, kaina_kg=kaina, verte=verte,
+                     pastabos=data.get("pastabos", ""))
+        db.add(s)
+        hist = SandelioIstorijia(veiksmas="Gauta", storis=storis, matmenys=matmenys, kiekis=qty,
+                                  svoris_vnt=svoris_vnt, svoris_is_viso=liko_kg, kaina_kg=kaina, verte=verte,
+                                  pastabos=data.get("pastabos", ""))
+        db.add(hist); db.commit()
+        return {"success": True, "id": stk_id, "svorisVnt": svoris_vnt, "likoT": liko_t, "verte": verte, "merged": False}
 
 @app.post("/api/sandelis/{stk_id}/naudoti")
 def naudoti(stk_id: str, data: dict, db: Session = Depends(get_db)):
@@ -399,6 +423,60 @@ def get_istorija(token: str = "", db: Session = Depends(get_db)):
                           "storis": h.storis, "matmenys": h.matmenys, "kiekis": h.kiekis,
                           "svorisVnt": h.svoris_vnt, "svorisIsViso": h.svoris_is_viso,
                           "kainaKg": h.kaina_kg, "verte": h.verte} for h in items]}
+
+# ════ LIKUČIAI API ════
+
+@app.get("/api/likuciai")
+def get_likuciai(token: str = "", db: Session = Depends(get_db)):
+    items = db.query(Likutis).order_by(Likutis.sukurta.desc()).all()
+    return {"likuciai": [_lik(l) for l in items]}
+
+@app.post("/api/likuciai")
+def add_likutis(data: dict, db: Session = Depends(get_db)):
+    import time
+    barcode = data.get("barcode") or f"LIK-{int(time.time()*1000)}"
+    storis = float(data["storis"])
+    plotis = float(data["plotis"])
+    ilgis = float(data["ilgis"])
+    matmenys = f"{int(plotis)}x{int(ilgis)}"
+    svoris = round((plotis/1000) * (ilgis/1000) * (storis/1000) * TANKIS, 2)
+    # Tikrinti ar jau egzistuoja
+    existing = db.query(Likutis).filter(Likutis.barcode == barcode).first()
+    if existing:
+        if existing.sunaudota:
+            return {"success": False, "sunaudota": True, "barcode": barcode}
+        # Pazymeti sunaudotu
+        existing.sunaudota = True
+        existing.sunaudota_kada = datetime.utcnow()
+        db.commit()
+        return {"success": True, "action": "sunaudota", "barcode": barcode, "storis": existing.storis, "matmenys": existing.matmenys}
+    # Kurti nauja
+    l = Likutis(barcode=barcode, storis=storis, matmenys=matmenys,
+                plotis=plotis, ilgis=ilgis, svoris=svoris,
+                pastabos=data.get("pastabos", ""))
+    db.add(l); db.commit()
+    return {"success": True, "action": "prideta", "barcode": barcode, "storis": storis, "matmenys": matmenys, "svoris": svoris}
+
+@app.post("/api/likuciai/scan")
+def scan_likutis(data: dict, db: Session = Depends(get_db)):
+    barcode = data.get("barcode", "").strip()
+    if not barcode: raise HTTPException(400, "Nėra barkodo")
+    existing = db.query(Likutis).filter(Likutis.barcode == barcode).first()
+    if not existing:
+        return {"success": False, "notFound": True}
+    if existing.sunaudota:
+        return {"success": False, "sunaudota": True, "barcode": barcode, "storis": existing.storis, "matmenys": existing.matmenys}
+    existing.sunaudota = True
+    existing.sunaudota_kada = datetime.utcnow()
+    db.commit()
+    return {"success": True, "action": "sunaudota", "barcode": barcode, "storis": existing.storis, "matmenys": existing.matmenys, "svoris": existing.svoris}
+
+@app.delete("/api/likuciai/{barcode}")
+def delete_likutis(barcode: str, db: Session = Depends(get_db)):
+    l = db.query(Likutis).filter(Likutis.barcode == barcode).first()
+    if not l: raise HTTPException(404)
+    db.delete(l); db.commit()
+    return {"success": True}
 
 # ════ ATASKAITA ════
 
@@ -512,6 +590,14 @@ def _stk(s):
             "kainaKg": s.kaina_kg, "verte": s.verte,
             "prideta": s.prideta.strftime("%Y-%m-%d %H:%M:%S") if s.prideta else "",
             "pastabos": s.pastabos or ""}
+
+def _lik(l):
+    return {"barcode": l.barcode, "storis": l.storis, "matmenys": l.matmenys,
+            "plotis": l.plotis, "ilgis": l.ilgis, "svoris": l.svoris,
+            "sunaudota": l.sunaudota,
+            "sukurta": l.sukurta.strftime("%Y-%m-%d %H:%M:%S") if l.sukurta else "",
+            "sunaudotaKada": l.sunaudota_kada.strftime("%Y-%m-%d %H:%M:%S") if l.sunaudota_kada else "",
+            "pastabos": l.pastabos or ""}
 
 def _recalc(uzs_id, db):
     dets = db.query(Detale).filter(Detale.uzsakymo_id == uzs_id).all()
