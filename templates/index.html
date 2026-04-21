@@ -71,8 +71,8 @@
       <div class="sbh">
         <div class="sbt" id="sbTitle">Uzsakymai</div>
         <button class="btn btn-g btn-sm" onclick="loadCurEtapas()">&#x21BB;</button>
-        <input type="date" id="pdfDate" class="scan-inp" style="width:140px;padding:4px 8px;font-size:12px" title="Pasirinkite datą">
-        <button id="pdfBtn" class="btn btn-s btn-sm" onclick="genPdfReport()" style="margin-left:4px">&#x2B50; PDF</button>
+        <div style="display:flex;align-items:center;gap:4px;background:var(--s2);border:1px solid var(--bd);border-radius:8px;padding:3px 8px"><span style="font-size:11px;color:var(--tx2);white-space:nowrap">📅</span><input type="date" id="pdfDate" style="border:none;background:transparent;font-size:12px;font-family:inherit;color:var(--tx);outline:none;cursor:pointer;width:120px"></div>
+        <button id="pdfBtn" class="btn btn-s btn-sm" onclick="genPdfReport()" style="margin-left:2px">⭐ PDF</button>
         <div class="sbsr"><span class="sbs-i">&#x2315;</span><input type="text" id="lkSrch" placeholder="Ieskoti..." oninput="rlkList()"></div>
       </div>
       <div class="frow">
