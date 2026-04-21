@@ -145,6 +145,11 @@ def init_db():
             conn.execute(text("ALTER TABLE sandelis ADD COLUMN IF NOT EXISTS verte FLOAT DEFAULT 0"))
             conn.execute(text("ALTER TABLE sandelis ADD COLUMN IF NOT EXISTS pastabos VARCHAR(500)"))
             conn.execute(text("ALTER TABLE sandelis ADD COLUMN IF NOT EXISTS sunaudota_vnt INTEGER DEFAULT 0"))
+            conn.execute(text("ALTER TABLE etapai ADD COLUMN IF NOT EXISTS is_viso INTEGER DEFAULT 0"))
+            conn.execute(text("ALTER TABLE etapai ADD COLUMN IF NOT EXISTS surinkta_sk INTEGER DEFAULT 0"))
+            conn.execute(text("ALTER TABLE etapai ADD COLUMN IF NOT EXISTS perduota_sk INTEGER DEFAULT 0"))
+            conn.execute(text("ALTER TABLE vartotojai ADD COLUMN IF NOT EXISTS pin_hash VARCHAR(200)"))
+            conn.execute(text("ALTER TABLE vartotojai ADD COLUMN IF NOT EXISTS slaptazodis_hash VARCHAR(200)"))
             conn.commit()
         except Exception:
             pass
