@@ -97,6 +97,8 @@ function SW(v) {
   document.getElementById('view-' + v).classList.add('active');
   const t = document.getElementById('tab-' + v); if (t) t.classList.add('active');
   if (v === 'lk') focusScan();
+  if (v === 'laz') { loadLaz(); setTimeout(()=>{ const i=document.getElementById('lazScanInp'); if(i) i.focus(); }, 100); }
+  if (v === 'lik') { loadLik(); setTimeout(()=>{ const i=document.getElementById('likScanInp'); if(i) i.focus(); }, 100); }
   if (v === 'dv') {
     const lt = localStorage.getItem('lastThick');
     if (lt) {
@@ -1024,6 +1026,121 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   });
+}
+
+// ════ LIKUČIAI ════
+// ════ LAZERIS ════
+let lazPrekes = [];
+let lazCurQrId = '', lazCurQrName = '';
+
+async function loadLaz() {
+  try {
+    const r = await api('GET', '/api/lazeris');
+    lazPrekes = r.prekes || [];
+    rLaz();
+  } catch(e) { toast('Klaida', true); }
+}
+
+function rLaz() {
+  const galv = lazPrekes.filter(p => p.tipas === 'galvute');
+  const lesi = lazPrekes.filter(p => p.tipas === 'lesis');
+  document.getElementById('lazGalvTbl').innerHTML = lazTable(galv);
+  document.getElementById('lazLesiTbl').innerHTML = lazTable(lesi);
+}
+
+function lazTable(prekes) {
+  if (!prekes.length) return '<div class="empty-s">Nėra</div>';
+  return '<table class="tbl" style="width:100%"><thead><tr>'
+    +'<th>Pavadinimas</th><th style="text-align:center">Kiekis</th><th></th>'
+    +'</tr></thead><tbody>'
+    + prekes.map(p => {
+        const warn = p.mazas ? 'color:var(--rd);font-weight:700' : 'color:var(--gn);font-weight:700';
+        const warnRow = p.mazas ? 'background:rgba(255,80,80,0.07)' : '';
+        return '<tr style="'+warnRow+'">'
+          +'<td>'+p.pavadinimas+(p.mazas?'<span style="color:var(--rd);font-size:11px"> ⚠ mažai</span>':'')+'</td>'
+          +'<td style="text-align:center;font-size:18px;'+warn+'">'+p.kiekis+'</td>'
+          +'<td style="white-space:nowrap;text-align:right">'
+          +'<button class="btn btn-s btn-sm" onclick="lazShowKiekis(\''+p.prekeId+'\',\''+p.pavadinimas+'\','+p.kiekis+','+p.minKiekis+')" style="margin-right:4px">±</button>'
+          +'<button class="btn btn-y btn-sm" onclick="lazShowQr(\''+p.prekeId+'\',\''+p.pavadinimas+'\')">QR</button>'
+          +'</td></tr>';
+      }).join('')
+    +'</tbody></table>';
+}
+
+async function lazScan() {
+  const inp = document.getElementById('lazScanInp');
+  const preke_id = inp.value.trim();
+  if (!preke_id) return;
+  inp.value = '';
+  inp.focus();
+  const res = document.getElementById('lazScanRes');
+  res.style.display = 'block';
+  try {
+    const r = await api('POST', '/api/lazeris/scan', {preke_id});
+    if (r.notFound) {
+      res.innerHTML = '<div class="res re"><div class="rt">NERASTA</div><div class="rc">'+preke_id+'</div></div>';
+      beep('err');
+    } else if (r.tusti) {
+      res.innerHTML = '<div class="res ra"><div class="rt">TUŠČIA ⚠</div><div class="rc">'+r.pavadinimas+'</div><div class="rs">Kiekis: 0</div></div>';
+      beep('err');
+    } else {
+      const warnTxt = r.mazas ? ' ⚠ MAŽAI LIKO!' : '';
+      const cls = r.mazas ? 'ra' : 'rd';
+      res.innerHTML = '<div class="res '+cls+'"><div class="rt">PAIMTA ✓'+warnTxt+'</div><div class="rc">'+r.pavadinimas+'</div><div class="rs">Liko: '+r.kiekis+' vnt.</div></div>';
+      beep('ok');
+      await loadLaz();
+    }
+  } catch(e) { res.innerHTML = '<div class="res re"><div class="rt">KLAIDA</div></div>'; beep('err'); }
+  setTimeout(() => { res.style.display='none'; }, 4000);
+}
+
+function lazShowQr(prekeId, pavadinimas) {
+  lazCurQrId = prekeId;
+  lazCurQrName = pavadinimas;
+  document.getElementById('lazQrTitle').textContent = pavadinimas;
+  document.getElementById('lazQrCode').textContent = prekeId;
+  const cont = document.getElementById('lazQrImg');
+  cont.innerHTML = '';
+  const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  try {
+    JsBarcode(svg, prekeId, {format:'CODE128', width:2, height:60, displayValue:true,
+      text: pavadinimas, fontSize:12, margin:8});
+  } catch(e) {}
+  cont.appendChild(svg);
+  document.getElementById('lazQrModal').style.display='flex';
+}
+
+function lazPrintQr() {
+  const svg = document.getElementById('lazQrImg').innerHTML;
+  const w = window.open('','_blank');
+  if (!w) { alert('Leiskite popup langus!'); return; }
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'
+    +'body{margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:Arial}'
+    +'@media print{@page{margin:5mm}}'
+    +'</style></head><body>'+svg+'<script>window.print();<\/script></body></html>');
+  w.document.close();
+}
+
+function lazShowKiekis(prekeId, pavadinimas, kiekis, minKiekis) {
+  document.getElementById('lazKiekId').value = prekeId;
+  document.getElementById('lazKiekTitle').textContent = pavadinimas;
+  document.getElementById('lazKiekVal').value = kiekis;
+  document.getElementById('lazKiekMin').value = minKiekis;
+  document.getElementById('lazKiekModal').style.display='flex';
+  setTimeout(() => document.getElementById('lazKiekVal').select(), 50);
+}
+
+async function lazSaveKiekis() {
+  const prekeId = document.getElementById('lazKiekId').value;
+  const kiekis = parseInt(document.getElementById('lazKiekVal').value)||0;
+  const minKiekis = parseInt(document.getElementById('lazKiekMin').value)||2;
+  try {
+    await api('PUT', '/api/lazeris/'+prekeId+'/kiekis', {kiekis});
+    await api('PUT', '/api/lazeris/'+prekeId+'/min', {min_kiekis: minKiekis});
+    CM('lazKiekModal');
+    await loadLaz();
+    toast('Išsaugota');
+  } catch(e) { toast('Klaida', true); }
 }
 
 // ════ LIKUČIAI ════
