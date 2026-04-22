@@ -54,7 +54,6 @@ class Uzsakymas(Base):
     pastabos = Column(Text, nullable=True)
     statusas = Column(String(50), default="Naujas")
     bendras_svoris = Column(Float, default=0)
-    bendra_suma = Column(Float, default=0)
     detaliu_sk = Column(Integer, default=0)
     sukurta = Column(DateTime, default=datetime.utcnow)
     detales = relationship("Detale", back_populates="uzsakymas", cascade="all, delete-orphan")
@@ -70,8 +69,6 @@ class Detale(Base):
     kiekis = Column(Integer, default=1)
     svoris = Column(Float)
     konturas = Column(Text, nullable=True)
-    kaina_kg = Column(Float, default=1.45)
-    suma = Column(Float, default=0)
     prideta = Column(DateTime, default=datetime.utcnow)
     uzsakymas = relationship("Uzsakymas", back_populates="detales")
 
@@ -106,83 +103,25 @@ class SandelioIstorijia(Base):
     verte = Column(Float, default=0)
     pastabos = Column(String(500), nullable=True)
 
-class Vartotojas(Base):
-    __tablename__ = "vartotojai"
+class LazerisPreke(Base):
+    __tablename__ = "lazeris_prekes"
     id = Column(Integer, primary_key=True)
-    vardas = Column(String(100), unique=True, nullable=False)
-    role = Column(String(20), default="darbuotojas")  # admin arba darbuotojas
-    pin_hash = Column(String(200), nullable=True)
-    slaptazodis_hash = Column(String(200), nullable=True)
+    preke_id = Column(String(50), unique=True, index=True)
+    tipas = Column(String(50))          # "galvute" arba "lesis"
+    dydis = Column(String(50))          # pvz. "1.4", "2.0", arba "standard"
+    pavadinimas = Column(String(200))   # pvz. "Galvutė 1.4mm"
+    kiekis = Column(Integer, default=0)
+    min_kiekis = Column(Integer, default=2)  # perspėjimo riba
     sukurta = Column(DateTime, default=datetime.utcnow)
 
-class Sesija(Base):
-    __tablename__ = "sesijos"
+class LazerisIstorijia(Base):
+    __tablename__ = "lazeris_istorija"
     id = Column(Integer, primary_key=True)
-    token = Column(String(200), unique=True, index=True)
-    vartotojas_id = Column(Integer, ForeignKey("vartotojai.id"))
-    sukurta = Column(DateTime, default=datetime.utcnow)
-    galioja_iki = Column(DateTime)
-
-class Likutis(Base):
-    __tablename__ = "likuciai"
-    id = Column(Integer, primary_key=True)
-    barcode = Column(String(100), unique=True, index=True)
-    storis = Column(Float)
-    matmenys = Column(String(100))
-    plotis = Column(Float)
-    ilgis = Column(Float)
-    svoris = Column(Float, default=0)
-    sukurta = Column(DateTime, default=datetime.utcnow)
-    sunaudota = Column(Boolean, default=False)
-    sunaudota_kada = Column(DateTime, nullable=True)
-    pastabos = Column(String(500), nullable=True)
+    preke_id = Column(String(50), index=True)
+    veiksmas = Column(String(50))       # "paimta" arba "prideta"
+    kiekis = Column(Integer)
+    likutis = Column(Integer)
+    data = Column(DateTime, default=datetime.utcnow)
 
 def init_db():
     Base.metadata.create_all(bind=engine)
-    # Prideti trukstamus stulpelius jei ju nera (migracija)
-    from sqlalchemy import text
-    with engine.connect() as conn:
-        try:
-            conn.execute(text("ALTER TABLE detales ADD COLUMN IF NOT EXISTS kaina_kg FLOAT DEFAULT 1.45"))
-            conn.execute(text("ALTER TABLE detales ADD COLUMN IF NOT EXISTS suma FLOAT DEFAULT 0"))
-            conn.execute(text("ALTER TABLE uzsakymai ADD COLUMN IF NOT EXISTS bendra_suma FLOAT DEFAULT 0"))
-            conn.execute(text("ALTER TABLE sandelio_istorija ADD COLUMN IF NOT EXISTS kaina_kg FLOAT DEFAULT 0"))
-            conn.execute(text("ALTER TABLE sandelio_istorija ADD COLUMN IF NOT EXISTS verte FLOAT DEFAULT 0"))
-            conn.execute(text("ALTER TABLE sandelio_istorija ADD COLUMN IF NOT EXISTS pastabos VARCHAR(500)"))
-            conn.execute(text("ALTER TABLE sandelio_istorija ADD COLUMN IF NOT EXISTS svoris_is_viso FLOAT DEFAULT 0"))
-            conn.execute(text("ALTER TABLE sandelio_istorija ADD COLUMN IF NOT EXISTS svoris_vnt FLOAT DEFAULT 0"))
-            conn.execute(text("ALTER TABLE sandelio_istorija ADD COLUMN IF NOT EXISTS kiekis INTEGER DEFAULT 0"))
-            conn.execute(text("ALTER TABLE sandelio_istorija ADD COLUMN IF NOT EXISTS storis FLOAT DEFAULT 0"))
-            conn.execute(text("ALTER TABLE sandelio_istorija ADD COLUMN IF NOT EXISTS matmenys VARCHAR(100)"))
-            conn.execute(text("ALTER TABLE sandelio_istorija ADD COLUMN IF NOT EXISTS veiksmas VARCHAR(50)"))
-            conn.execute(text("ALTER TABLE sandelis ADD COLUMN IF NOT EXISTS kaina_kg FLOAT DEFAULT 0"))
-            conn.execute(text("ALTER TABLE sandelis ADD COLUMN IF NOT EXISTS verte FLOAT DEFAULT 0"))
-            conn.execute(text("ALTER TABLE sandelis ADD COLUMN IF NOT EXISTS pastabos VARCHAR(500)"))
-            conn.execute(text("ALTER TABLE sandelis ADD COLUMN IF NOT EXISTS sunaudota_vnt INTEGER DEFAULT 0"))
-            conn.execute(text("ALTER TABLE etapai ADD COLUMN IF NOT EXISTS is_viso INTEGER DEFAULT 0"))
-            conn.execute(text("ALTER TABLE etapai ADD COLUMN IF NOT EXISTS surinkta_sk INTEGER DEFAULT 0"))
-            conn.execute(text("ALTER TABLE etapai ADD COLUMN IF NOT EXISTS perduota_sk INTEGER DEFAULT 0"))
-            conn.execute(text("ALTER TABLE vartotojai ADD COLUMN IF NOT EXISTS pin_hash VARCHAR(200)"))
-            conn.execute(text("ALTER TABLE vartotojai ADD COLUMN IF NOT EXISTS slaptazodis_hash VARCHAR(200)"))
-            conn.commit()
-        except Exception:
-            pass
-    # Sukurti numatytuosius vartotojus jei nera
-    from sqlalchemy.orm import Session as OrmSession
-    db = OrmSession(bind=engine)
-    try:
-        if not db.query(Vartotojas).filter(Vartotojas.vardas == "admin").first():
-            import hashlib
-            admin = Vartotojas(vardas="admin", role="admin",
-                slaptazodis_hash=hashlib.sha256("admin123".encode()).hexdigest())
-            db.add(admin)
-        if not db.query(Vartotojas).filter(Vartotojas.vardas == "darbuotojas").first():
-            import hashlib
-            darb = Vartotojas(vardas="darbuotojas", role="darbuotojas",
-                pin_hash=hashlib.sha256("1234".encode()).hexdigest())
-            db.add(darb)
-        db.commit()
-    except Exception:
-        db.rollback()
-    finally:
-        db.close()
