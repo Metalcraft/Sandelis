@@ -44,6 +44,10 @@ async def icon():
 async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
 # ════ ETAPAI API ════
 
 @app.get("/api/etapai/aktyvus")
