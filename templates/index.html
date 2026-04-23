@@ -215,29 +215,33 @@
       <button class="btn btn-s btn-sm" onclick="loadLaz()">↻</button>
     </div>
 
-    <!-- SKENAVIMAS -->
-    <div class="card" style="margin-bottom:12px">
-      <div class="ct">SKENAVIMAS</div>
+    <!-- RANKINIS ĮVEDIMAS / SKENAVIMAS -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="ct">PAIMTI (įvesk dydį arba skenuok)</div>
       <div style="display:flex;gap:8px;align-items:center">
-        <input type="text" id="lazScanInp" class="inp" placeholder="Skenuok QR kodą..."
-               style="flex:1;font-size:16px"
+        <input type="text" id="lazScanInp" class="inp"
+               placeholder="Pvz.: 1.4  arba  skenuok QR..."
+               style="flex:1;font-size:18px;font-weight:700;letter-spacing:1px"
                onkeydown="if(event.key==='Enter'){lazScan();}"
                autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-        <button class="btn btn-p" onclick="lazScan()">✓</button>
+        <button class="btn btn-p" style="font-size:18px;padding:10px 20px" onclick="lazScan()">✓ Paimti</button>
       </div>
-      <div id="lazScanRes" style="margin-top:8px;display:none"></div>
+      <div style="margin-top:6px;font-size:12px;color:var(--tx3)">
+        Galvutėms įvesk dydį (pvz. <strong>1.4</strong> arba <strong>2.5</strong>) · Lešiui įvesk <strong>lesis</strong>
+      </div>
+      <div id="lazScanRes" style="margin-top:10px;display:none"></div>
     </div>
 
     <!-- GALVUTĖS -->
-    <div class="card" style="margin-bottom:12px">
-      <div class="ct">GALVUTĖS</div>
-      <div id="lazGalvTbl"></div>
+    <div class="card" style="margin-bottom:12px;padding:0;overflow:hidden">
+      <div class="card-h"><span class="card-t">⚙ Galvutės</span></div>
+      <div id="lazGalvGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:1px;background:var(--bd)"></div>
     </div>
 
     <!-- LEŠIAI -->
-    <div class="card" style="margin-bottom:12px">
-      <div class="ct">LEŠIAI</div>
-      <div id="lazLesiTbl"></div>
+    <div class="card" style="margin-bottom:12px;padding:0;overflow:hidden">
+      <div class="card-h"><span class="card-t">🔵 Lešiai</span></div>
+      <div id="lazLesiGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1px;background:var(--bd)"></div>
     </div>
   </div>
 </div>
@@ -389,8 +393,16 @@
     <div class="mh">Nustatymai</div>
     <div class="mf">
       <div><label class="fl">Numatyta kaina / t (EUR)</label><input type="number" id="settP" step="0.01"></div>
-      <div><label class="fl">Zemos atsargos ispejimas</label><input type="number" id="settL" value="2" min="0"></div>
-      <div class="mb"><button class="btn btn-s" onclick="CM('settModal')">Atsaukti</button><button class="btn btn-p" onclick="saveSett()">Issaugoti</button></div>
+      <div><label class="fl">Žemos atsargos įspėjimas</label><input type="number" id="settL" value="2" min="0"></div>
+      <div><label class="fl">DXF kaina EUR/kg</label><input type="number" id="settDxf" step="0.01" value="1.45"></div>
+      <div id="adminSett">
+        <div style="border-top:1px solid var(--bd);margin:10px 0;padding-top:10px;font-size:11px;color:var(--tx3);font-weight:700">SLAPTAŽODIS</div>
+        <div><label class="fl">Naujas slaptažodis</label><input type="password" id="settNewPass" class="inp" placeholder="Palikite tuščią jei nekeičiate"></div>
+      </div>
+      <div class="mb">
+        <button class="btn btn-s" onclick="CM('settModal')">Atšaukti</button>
+        <button class="btn btn-p" onclick="saveSett();saveSecurity()">Išsaugoti</button>
+      </div>
     </div>
   </div>
 </div>
