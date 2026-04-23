@@ -103,25 +103,5 @@ class SandelioIstorijia(Base):
     verte = Column(Float, default=0)
     pastabos = Column(String(500), nullable=True)
 
-class LazerisPreke(Base):
-    __tablename__ = "lazeris_prekes"
-    id = Column(Integer, primary_key=True)
-    preke_id = Column(String(50), unique=True, index=True)
-    tipas = Column(String(50))          # "galvute" arba "lesis"
-    dydis = Column(String(50))          # pvz. "1.4", "2.0", arba "standard"
-    pavadinimas = Column(String(200))   # pvz. "Galvutė 1.4mm"
-    kiekis = Column(Integer, default=0)
-    min_kiekis = Column(Integer, default=2)  # perspėjimo riba
-    sukurta = Column(DateTime, default=datetime.utcnow)
-
-class LazerisIstorijia(Base):
-    __tablename__ = "lazeris_istorija"
-    id = Column(Integer, primary_key=True)
-    preke_id = Column(String(50), index=True)
-    veiksmas = Column(String(50))       # "paimta" arba "prideta"
-    kiekis = Column(Integer)
-    likutis = Column(Integer)
-    data = Column(DateTime, default=datetime.utcnow)
-
 def init_db():
     Base.metadata.create_all(bind=engine)
