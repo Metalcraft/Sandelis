@@ -19,6 +19,8 @@ def get_db():
     finally:
         db.close()
 
+# ════ MODELIAI ════
+
 class Lakstai(Base):
     __tablename__ = "lakstai"
     id = Column(Integer, primary_key=True, index=True)
@@ -103,9 +105,6 @@ class SandelioIstorijia(Base):
     verte = Column(Float, default=0)
     pastabos = Column(String(500), nullable=True)
 
-def init_db():
-    Base.metadata.create_all(bind=engine)
-
 class LazerisPrieke(Base):
     __tablename__ = "lazeris_prekes"
     id = Column(Integer, primary_key=True)
@@ -129,3 +128,7 @@ class Likutis(Base):
     sunaudota_kada = Column(DateTime, nullable=True)
     prideta = Column(DateTime, default=datetime.utcnow)
     pastabos = Column(String(500), nullable=True)
+
+# ════ init_db VISADA PABAIGOJE ════
+def init_db():
+    Base.metadata.create_all(bind=engine)
