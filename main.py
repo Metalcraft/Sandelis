@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Optional
 import os
 
-from database import get_db, init_db, Lakstai, AktyvusEtapas, Etapas, Uzsakymas, Detale, Sandelis, SandelioIstorijia, LazerisPreke, LazerisIstorijia
+from database import get_db, init_db, Lakstai, AktyvusEtapas, Etapas, Uzsakymas, Detale, Sandelis, SandelioIstorijia
 
 app = FastAPI(title="Sandelio Sistema")
 TANKIS = 8000
@@ -43,44 +43,6 @@ async def icon():
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
-
-@app.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
-
-# ════ AUTH (paprastas, be DB) ════
-ADMIN_PASS = os.getenv("ADMIN_PASS", "admin123")
-TOKENS = {}  # token -> role
-
-@app.post("/api/auth/login")
-def auth_login(data: dict):
-    import secrets, time
-    slaptazodis = data.get("slaptazodis", "")
-    if slaptazodis == ADMIN_PASS:
-        token = secrets.token_hex(16)
-        TOKENS[token] = {"role": "admin", "ts": time.time()}
-        return {"token": token, "role": "admin", "vardas": "Admin"}
-    return {"klaida": "Neteisingas slaptažodis"}
-
-@app.get("/api/auth/me")
-def auth_me(token: str = ""):
-    if token in TOKENS:
-        return {"ok": True, "role": TOKENS[token]["role"], "vardas": "Admin"}
-    raise HTTPException(401, "Neprisijungęs")
-
-@app.post("/api/auth/logout")
-def auth_logout(data: dict):
-    token = data.get("token", "")
-    TOKENS.pop(token, None)
-    return {"ok": True}
-
-@app.put("/api/auth/slaptazodis")
-def change_pass(data: dict):
-    return {"ok": True}
-
-@app.put("/api/auth/pin")
-def change_pin(data: dict):
-    return {"ok": True}
 
 # ════ ETAPAI API ════
 
@@ -404,91 +366,6 @@ async def siusti_email(db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(500, f"Klaida: {str(e)}")
 
-# ════ LAZERIS ════
-
-LAZERIS_PREKES_DEFAULT = [
-    {"tipas": "galvute", "dydis": "0.8",  "pavadinimas": "Galvutė 0.8mm"},
-    {"tipas": "galvute", "dydis": "1.0",  "pavadinimas": "Galvutė 1.0mm"},
-    {"tipas": "galvute", "dydis": "1.2",  "pavadinimas": "Galvutė 1.2mm"},
-    {"tipas": "galvute", "dydis": "1.4",  "pavadinimas": "Galvutė 1.4mm"},
-    {"tipas": "galvute", "dydis": "1.6",  "pavadinimas": "Galvutė 1.6mm"},
-    {"tipas": "galvute", "dydis": "2.0",  "pavadinimas": "Galvutė 2.0mm"},
-    {"tipas": "galvute", "dydis": "2.5",  "pavadinimas": "Galvutė 2.5mm"},
-    {"tipas": "galvute", "dydis": "3.0",  "pavadinimas": "Galvutė 3.0mm"},
-    {"tipas": "lesis",   "dydis": "std",  "pavadinimas": "Lešis"},
-]
-
-def _init_lazeris(db: Session):
-    """Inicializuoja prekes jei jų nėra DB"""
-    for p in LAZERIS_PREKES_DEFAULT:
-        preke_id = f"LAZ-{p['tipas']}-{p['dydis']}"
-        existing = db.query(LazerisPreke).filter(LazerisPreke.preke_id == preke_id).first()
-        if not existing:
-            db.add(LazerisPreke(
-                preke_id=preke_id,
-                tipas=p["tipas"],
-                dydis=p["dydis"],
-                pavadinimas=p["pavadinimas"],
-                kiekis=0,
-                min_kiekis=2
-            ))
-    db.commit()
-
-@app.get("/api/lazeris")
-def get_lazeris(db: Session = Depends(get_db)):
-    _init_lazeris(db)
-    prekes = db.query(LazerisPreke).order_by(LazerisPreke.tipas, LazerisPreke.dydis).all()
-    return {"prekes": [_laz(p) for p in prekes]}
-
-@app.post("/api/lazeris/scan")
-def lazeris_scan(data: dict, db: Session = Depends(get_db)):
-    preke_id = data.get("preke_id", "").strip()
-    p = db.query(LazerisPreke).filter(LazerisPreke.preke_id == preke_id).first()
-    if not p:
-        return {"notFound": True}
-    if p.kiekis <= 0:
-        return {"tusti": True, "pavadinimas": p.pavadinimas, "kiekis": 0}
-    p.kiekis -= 1
-    db.add(LazerisIstorijia(preke_id=preke_id, veiksmas="paimta", kiekis=1, likutis=p.kiekis))
-    db.commit()
-    return {"success": True, "pavadinimas": p.pavadinimas, "kiekis": p.kiekis, "mazas": p.kiekis <= p.min_kiekis}
-
-@app.put("/api/lazeris/{preke_id}/kiekis")
-def update_kiekis(preke_id: str, data: dict, db: Session = Depends(get_db)):
-    p = db.query(LazerisPreke).filter(LazerisPreke.preke_id == preke_id).first()
-    if not p:
-        raise HTTPException(404, "Nerasta")
-    naujas = int(data.get("kiekis", 0))
-    senas = p.kiekis
-    p.kiekis = naujas
-    veiksmas = "prideta" if naujas > senas else "paimta"
-    skirtumas = abs(naujas - senas)
-    if skirtumas > 0:
-        db.add(LazerisIstorijia(preke_id=preke_id, veiksmas=veiksmas, kiekis=skirtumas, likutis=naujas))
-    db.commit()
-    return _laz(p)
-
-@app.put("/api/lazeris/{preke_id}/min")
-def update_min(preke_id: str, data: dict, db: Session = Depends(get_db)):
-    p = db.query(LazerisPreke).filter(LazerisPreke.preke_id == preke_id).first()
-    if not p:
-        raise HTTPException(404, "Nerasta")
-    p.min_kiekis = int(data.get("min_kiekis", 2))
-    db.commit()
-    return _laz(p)
-
-@app.get("/api/lazeris/{preke_id}/istorija")
-def get_lazeris_istorija(preke_id: str, db: Session = Depends(get_db)):
-    h = db.query(LazerisIstorijia).filter(LazerisIstorijia.preke_id == preke_id)\
-         .order_by(LazerisIstorijia.data.desc()).limit(50).all()
-    return {"istorija": [{"veiksmas": x.veiksmas, "kiekis": x.kiekis, "likutis": x.likutis,
-                          "data": x.data.strftime("%Y-%m-%d %H:%M")} for x in h]}
-
-def _laz(p):
-    return {"prekeId": p.preke_id, "tipas": p.tipas, "dydis": p.dydis,
-            "pavadinimas": p.pavadinimas, "kiekis": p.kiekis,
-            "minKiekis": p.min_kiekis, "mazas": p.kiekis <= p.min_kiekis}
-
 # ════ PAGALBINES FUNKCIJOS ════
 
 def _lk(l):
@@ -531,3 +408,38 @@ def _recalc(uzs_id, db):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
+
+
+# ════ AUTH ════
+ADMIN_PASS = os.getenv("ADMIN_PASS", "admin123")
+TOKENS = {}
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+@app.post("/api/auth/login")
+def auth_login(data: dict):
+    import secrets, time
+    if data.get("slaptazodis","") == ADMIN_PASS:
+        token = secrets.token_hex(16)
+        TOKENS[token] = {"role": "admin"}
+        return {"token": token, "role": "admin", "vardas": "Admin"}
+    return {"klaida": "Neteisingas slaptažodis"}
+
+@app.get("/api/auth/me")
+def auth_me(token: str = ""):
+    if token in TOKENS:
+        return {"ok": True, "role": "admin", "vardas": "Admin"}
+    raise HTTPException(401, "Neprisijungęs")
+
+@app.post("/api/auth/logout")
+def auth_logout(data: dict):
+    TOKENS.pop(data.get("token",""), None)
+    return {"ok": True}
+
+@app.put("/api/auth/slaptazodis")
+def change_pass(data: dict): return {"ok": True}
+
+@app.put("/api/auth/pin")
+def change_pin(data: dict): return {"ok": True}
