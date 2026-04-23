@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Optional
 import os
 
-from database import get_db, init_db, Lakstai, AktyvusEtapas, Etapas, Uzsakymas, Detale, Sandelis, SandelioIstorijia
+from database import get_db, init_db, Lakstai, AktyvusEtapas, Etapas, Uzsakymas, Detale, Sandelis, SandelioIstorijia, LazerisPrieke, Likutis
 
 app = FastAPI(title="Sandelio Sistema")
 TANKIS = 8000
@@ -416,7 +416,7 @@ TOKENS = {}
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse("login.html", {"request": request})
 
 @app.post("/api/auth/login")
 def auth_login(data: dict):
@@ -443,3 +443,120 @@ def change_pass(data: dict): return {"ok": True}
 
 @app.put("/api/auth/pin")
 def change_pin(data: dict): return {"ok": True}
+
+# ════ LAZERIS API ════
+
+@app.get("/api/lazeris")
+def get_lazeris(db: Session = Depends(get_db)):
+    prekes = db.query(LazerisPrieke).order_by(LazerisPrieke.tipas, LazerisPrieke.pavadinimas).all()
+    return {"prekes": [_laz(p) for p in prekes]}
+
+@app.post("/api/lazeris")
+def add_lazeris(data: dict, db: Session = Depends(get_db)):
+    import uuid
+    preke_id = data.get("prekeId") or "LAZ-" + str(uuid.uuid4())[:8].upper()
+    p = LazerisPrieke(
+        preke_id=preke_id,
+        pavadinimas=data.get("pavadinimas", ""),
+        tipas=data.get("tipas", "galvute"),
+        kiekis=int(data.get("kiekis", 0)),
+        min_kiekis=int(data.get("minKiekis", 2))
+    )
+    db.add(p); db.commit(); db.refresh(p)
+    return {"success": True, "prekeId": p.preke_id}
+
+@app.post("/api/lazeris/scan")
+def lazeris_scan(data: dict, db: Session = Depends(get_db)):
+    preke_id = data.get("preke_id", "")
+    p = db.query(LazerisPrieke).filter(LazerisPrieke.preke_id == preke_id).first()
+    if not p:
+        return {"notFound": True}
+    if p.kiekis <= 0:
+        return {"tusti": True, "pavadinimas": p.pavadinimas, "kiekis": 0}
+    p.kiekis = max(0, p.kiekis - 1)
+    db.commit()
+    return {"success": True, "pavadinimas": p.pavadinimas, "kiekis": p.kiekis,
+            "mazas": p.kiekis <= p.min_kiekis}
+
+@app.put("/api/lazeris/{preke_id}/kiekis")
+def update_lazeris_kiekis(preke_id: str, data: dict, db: Session = Depends(get_db)):
+    p = db.query(LazerisPrieke).filter(LazerisPrieke.preke_id == preke_id).first()
+    if not p: raise HTTPException(404)
+    p.kiekis = int(data.get("kiekis", 0))
+    db.commit()
+    return {"success": True}
+
+@app.put("/api/lazeris/{preke_id}/min")
+def update_lazeris_min(preke_id: str, data: dict, db: Session = Depends(get_db)):
+    p = db.query(LazerisPrieke).filter(LazerisPrieke.preke_id == preke_id).first()
+    if not p: raise HTTPException(404)
+    p.min_kiekis = int(data.get("min_kiekis", 2))
+    db.commit()
+    return {"success": True}
+
+@app.delete("/api/lazeris/{preke_id}")
+def delete_lazeris(preke_id: str, db: Session = Depends(get_db)):
+    p = db.query(LazerisPrieke).filter(LazerisPrieke.preke_id == preke_id).first()
+    if not p: raise HTTPException(404)
+    db.delete(p); db.commit()
+    return {"success": True}
+
+def _laz(p):
+    return {"prekeId": p.preke_id, "pavadinimas": p.pavadinimas, "tipas": p.tipas,
+            "kiekis": p.kiekis, "minKiekis": p.min_kiekis,
+            "mazas": p.kiekis <= p.min_kiekis}
+
+# ════ LIKUČIAI API ════
+
+@app.get("/api/likuciai")
+def get_likuciai(db: Session = Depends(get_db)):
+    items = db.query(Likutis).order_by(Likutis.storis, Likutis.prideta.desc()).all()
+    return {"likuciai": [_lik(l) for l in items]}
+
+@app.post("/api/likuciai")
+def add_likutis(data: dict, db: Session = Depends(get_db)):
+    storis = float(data.get("storis", 0))
+    plotis = float(data.get("plotis", 0))
+    ilgis  = float(data.get("ilgis", 0))
+    svoris = round((plotis/1000) * (ilgis/1000) * (storis/1000) * TANKIS, 2)
+    matmenys = f"{int(plotis)}x{int(ilgis)}" if plotis and ilgis else data.get("matmenys", "")
+    barcode = data.get("barcode", "").strip()
+    if not barcode:
+        barcode = f"LK-{storis}mm-{matmenys}-{int(datetime.utcnow().timestamp())}"
+    existing = db.query(Likutis).filter(Likutis.barcode == barcode).first()
+    if existing:
+        return {"success": False, "alreadyExists": True}
+    l = Likutis(barcode=barcode, storis=storis, matmenys=matmenys,
+                plotis=plotis, ilgis=ilgis, svoris=svoris,
+                pastabos=data.get("pastabos", ""))
+    db.add(l); db.commit()
+    return {"success": True, "barcode": barcode, "svoris": svoris}
+
+@app.post("/api/likuciai/scan")
+def likuciai_scan(data: dict, db: Session = Depends(get_db)):
+    barcode = data.get("barcode", "")
+    l = db.query(Likutis).filter(Likutis.barcode == barcode).first()
+    if not l:
+        return {"notFound": True}
+    if l.sunaudota:
+        return {"sunaudota": True, "storis": l.storis, "matmenys": l.matmenys}
+    l.sunaudota = True
+    l.sunaudota_kada = datetime.utcnow()
+    db.commit()
+    return {"success": True, "action": "sunaudota", "storis": l.storis,
+            "matmenys": l.matmenys, "svoris": l.svoris}
+
+@app.delete("/api/likuciai/{barcode}")
+def delete_likutis(barcode: str, db: Session = Depends(get_db)):
+    l = db.query(Likutis).filter(Likutis.barcode == barcode).first()
+    if not l: raise HTTPException(404)
+    db.delete(l); db.commit()
+    return {"success": True}
+
+def _lik(l):
+    return {"barcode": l.barcode, "storis": l.storis, "matmenys": l.matmenys,
+            "plotis": l.plotis, "ilgis": l.ilgis, "svoris": l.svoris,
+            "sunaudota": l.sunaudota,
+            "sunaudotaKada": l.sunaudota_kada.strftime("%Y-%m-%d %H:%M") if l.sunaudota_kada else "",
+            "prideta": l.prideta.strftime("%Y-%m-%d %H:%M") if l.prideta else "",
+            "pastabos": l.pastabos or ""}
