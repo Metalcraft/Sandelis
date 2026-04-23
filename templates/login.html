@@ -3,165 +3,243 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sandelis — Prisijungimas</title>
+<meta name="theme-color" content="#0969da">
+<title>Prisijungimas – Sandelio Sistema</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/css/main.css">
 <style>
-body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg)}
-.login-wrap{width:100%;max-width:360px;padding:16px}
-.login-card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:32px 24px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
-.login-logo{text-align:center;margin-bottom:24px}
-.login-logo .brand-ico{width:48px;height:48px;background:var(--ac);border-radius:12px;margin:0 auto 10px;display:flex;align-items:center;justify-content:center}
-.login-title{font-size:22px;font-weight:800;text-align:center;margin-bottom:4px}
-.login-sub{font-size:13px;color:var(--tx2);text-align:center;margin-bottom:24px}
-.tab-sw{display:flex;background:var(--s2);border-radius:10px;padding:3px;margin-bottom:20px;gap:3px}
-.tab-sw button{flex:1;padding:8px;border:none;background:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;color:var(--tx2);transition:.15s}
-.tab-sw button.active{background:var(--card);color:var(--tx);box-shadow:0 1px 4px rgba(0,0,0,.1)}
-.pin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}
-.pin-btn{padding:18px;font-size:20px;font-weight:700;border:1px solid var(--bd);border-radius:12px;background:var(--card);cursor:pointer;color:var(--tx);transition:.15s}
-.pin-btn:hover{background:var(--s2)}
-.pin-btn:active{transform:scale(.95)}
-.pin-display{display:flex;gap:12px;justify-content:center;margin:16px 0}
-.pin-dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--bd);transition:.15s}
-.pin-dot.filled{background:var(--ac);border-color:var(--ac)}
-.biometric-btn{width:100%;padding:14px;border:1px solid var(--bd);border-radius:12px;background:var(--card);font-size:15px;font-weight:600;cursor:pointer;color:var(--tx);margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px}
-.biometric-btn:hover{background:var(--s2)}
-.err{color:var(--rd);font-size:13px;text-align:center;margin-top:8px;min-height:20px}
-.remember{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--tx2);margin:12px 0}
-.remember input{width:16px;height:16px;cursor:pointer}
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: #0d1117;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .wrap {
+    width: 100%;
+    max-width: 380px;
+  }
+
+  .logo-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  .logo-ico {
+    width: 44px;
+    height: 44px;
+    background: #0969da;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .logo-ico::after {
+    content: '';
+    display: block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #fff;
+    border-radius: 3px;
+  }
+
+  .logo-txt {
+    font-size: 22px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: 2px;
+  }
+
+  .card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 14px;
+    padding: 32px;
+  }
+
+  .card-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #e6edf3;
+    margin-bottom: 6px;
+    text-align: center;
+  }
+
+  .card-sub {
+    font-size: 13px;
+    color: #8b949e;
+    text-align: center;
+    margin-bottom: 28px;
+  }
+
+  .fl {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #8b949e;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .inp {
+    width: 100%;
+    padding: 11px 14px;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    color: #e6edf3;
+    font-size: 15px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color .15s;
+  }
+
+  .inp:focus { border-color: #0969da; }
+
+  .inp-wrap { margin-bottom: 18px; position: relative; }
+
+  .inp-wrap .eye {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #8b949e;
+    font-size: 16px;
+    user-select: none;
+  }
+
+  .inp-wrap .eye:hover { color: #e6edf3; }
+
+  .btn-login {
+    width: 100%;
+    padding: 12px;
+    background: #0969da;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background .15s, transform .1s;
+    margin-top: 4px;
+  }
+
+  .btn-login:hover { background: #0860ca; }
+  .btn-login:active { transform: scale(.98); }
+  .btn-login:disabled { background: #30363d; color: #8b949e; cursor: not-allowed; transform: none; }
+
+  .err {
+    display: none;
+    background: rgba(248,81,73,.12);
+    border: 1px solid rgba(248,81,73,.4);
+    color: #f85149;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+
+  .err.show { display: block; }
+
+  .footer {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 12px;
+    color: #484f58;
+  }
 </style>
 </head>
 <body>
-<div class="login-wrap">
-  <div class="login-card">
-    <div class="login-logo">
-      <div class="brand-ico"><span style="color:white;font-weight:900;font-size:18px">S</span></div>
-      <div class="login-title">SANDELIS</div>
-      <div class="login-sub">Prisijunkite norėdami tęsti</div>
-    </div>
 
-    <div class="tab-sw">
-      <button class="active" onclick="showTab('admin')" id="tabAdmin">🔐 Admin</button>
-      <button onclick="showTab('pin')" id="tabPin">🔢 PIN</button>
-    </div>
-
-    <!-- ADMIN LOGIN -->
-    <div id="adminForm">
-      <div><label class="fl">Slaptažodis</label><input type="password" id="adminPass" class="scan-inp" style="width:100%;box-sizing:border-box" placeholder="Įveskite slaptažodį" onkeydown="if(event.key==='Enter')doAdminLogin()"></div>
-      <label class="remember"><input type="checkbox" id="rememberMe"> Prisiminti šį įrenginį (30 d.)</label>
-      <button class="btn btn-p" style="width:100%;margin-top:8px;padding:14px;font-size:15px" onclick="doAdminLogin()">Prisijungti</button>
-      <button class="biometric-btn" id="bioBtn" style="display:none" onclick="doBiometric()">🔒 Face ID / Touch ID</button>
-    </div>
-
-    <!-- PIN LOGIN -->
-    <div id="pinForm" style="display:none">
-      <div class="pin-display">
-        <div class="pin-dot" id="pd0"></div>
-        <div class="pin-dot" id="pd1"></div>
-        <div class="pin-dot" id="pd2"></div>
-        <div class="pin-dot" id="pd3"></div>
-      </div>
-      <div class="pin-grid">
-        <button class="pin-btn" onclick="pinPress('1')">1</button>
-        <button class="pin-btn" onclick="pinPress('2')">2</button>
-        <button class="pin-btn" onclick="pinPress('3')">3</button>
-        <button class="pin-btn" onclick="pinPress('4')">4</button>
-        <button class="pin-btn" onclick="pinPress('5')">5</button>
-        <button class="pin-btn" onclick="pinPress('6')">6</button>
-        <button class="pin-btn" onclick="pinPress('7')">7</button>
-        <button class="pin-btn" onclick="pinPress('8')">8</button>
-        <button class="pin-btn" onclick="pinPress('9')">9</button>
-        <button class="pin-btn" onclick="pinPress('')" style="font-size:14px">⌫</button>
-        <button class="pin-btn" onclick="pinPress('0')">0</button>
-        <button class="pin-btn" onclick="pinPress('')" style="font-size:14px;color:var(--tx3)">—</button>
-      </div>
-    </div>
-
-    <div class="err" id="loginErr"></div>
+<div class="wrap">
+  <div class="logo-row">
+    <div class="logo-ico"></div>
+    <div class="logo-txt">SANDELIS</div>
   </div>
+
+  <div class="card">
+    <div class="card-title">Prisijungimas</div>
+    <div class="card-sub">Įveskite slaptažodį norėdami tęsti</div>
+
+    <div class="err" id="errMsg">Neteisingas slaptažodis</div>
+
+    <div class="inp-wrap">
+      <label class="fl" for="passInp">Slaptažodis</label>
+      <input class="inp" type="password" id="passInp" placeholder="••••••••" autocomplete="current-password">
+      <span class="eye" id="eyeBtn" onclick="togglePass()">👁</span>
+    </div>
+
+    <button class="btn-login" id="loginBtn" onclick="doLogin()">Prisijungti</button>
+  </div>
+
+  <div class="footer">Metalcraft &copy; Sandelio Sistema</div>
 </div>
 
 <script>
-let pinVal = '';
+  // Enter key support
+  document.getElementById('passInp').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
 
-function showTab(t) {
-  document.getElementById('adminForm').style.display = t==='admin'?'':'none';
-  document.getElementById('pinForm').style.display = t==='pin'?'':'none';
-  document.getElementById('tabAdmin').className = t==='admin'?'active':'';
-  document.getElementById('tabPin').className = t==='pin'?'active':'';
-  document.getElementById('loginErr').textContent = '';
-  pinVal = ''; updateDots();
-}
+  // Auto-focus
+  document.getElementById('passInp').focus();
 
-function updateDots() {
-  for(let i=0;i<4;i++) document.getElementById('pd'+i).className='pin-dot'+(i<pinVal.length?' filled':'');
-}
-
-function pinPress(d) {
-  if(!d) { pinVal=pinVal.slice(0,-1); updateDots(); return; }
-  if(pinVal.length>=4) return;
-  pinVal+=d; updateDots();
-  if(pinVal.length===4) setTimeout(doPinLogin,150);
-}
-
-async function doPinLogin() {
-  const err = document.getElementById('loginErr');
-  err.textContent = '';
-  try {
-    const r = await fetch('/api/auth/login', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({vardas:'darbuotojas',pin:pinVal})});
-    const d = await r.json();
-    if(d.success) { saveAndGo(d); }
-    else { err.textContent = 'Neteisingas PIN!'; pinVal=''; updateDots(); }
-  } catch(e) { err.textContent = 'Klaida!'; pinVal=''; updateDots(); }
-}
-
-async function doAdminLogin() {
-  const pass = document.getElementById('adminPass').value;
-  const remember = document.getElementById('rememberMe').checked;
-  const err = document.getElementById('loginErr');
-  err.textContent = '';
-  if(!pass) { err.textContent = 'Įveskite slaptažodį!'; return; }
-  try {
-    const r = await fetch('/api/auth/login', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({vardas:'admin',slaptazodis:pass,remember})});
-    const d = await r.json();
-    if(d.success) { saveAndGo(d); }
-    else { err.textContent = 'Neteisingas slaptažodis!'; }
-  } catch(e) { err.textContent = 'Klaida!'; }
-}
-
-function saveAndGo(d) {
-  const days = d.days || 1;
-  const exp = new Date(Date.now()+days*864e5).toUTCString();
-  document.cookie = `stoken=${d.token};expires=${exp};path=/;SameSite=Strict`;
-  localStorage.setItem('srole', d.role);
-  localStorage.setItem('svardas', d.vardas);
-  window.location.href = '/';
-}
-
-// WebAuthn / biometric
-async function checkBiometric() {
-  if(!window.PublicKeyCredential) return;
-  const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-  if(available && localStorage.getItem('bioToken')) {
-    document.getElementById('bioBtn').style.display = 'flex';
+  function togglePass() {
+    const inp = document.getElementById('passInp');
+    inp.type = inp.type === 'password' ? 'text' : 'password';
   }
-}
 
-async function doBiometric() {
-  const token = localStorage.getItem('bioToken');
-  if(!token) return;
-  // Just use saved token
-  const r = await fetch('/api/auth/me?token='+token);
-  if(r.ok) {
-    localStorage.setItem('srole', (await r.json()).role);
-    window.location.href = '/';
-  } else {
-    localStorage.removeItem('bioToken');
-    document.getElementById('bioBtn').style.display = 'none';
+  async function doLogin() {
+    const slaptazodis = document.getElementById('passInp').value;
+    if (!slaptazodis) return;
+
+    const btn = document.getElementById('loginBtn');
+    const err = document.getElementById('errMsg');
+    btn.disabled = true;
+    btn.textContent = 'Jungiamasi...';
+    err.classList.remove('show');
+
+    try {
+      const r = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slaptazodis })
+      });
+      const d = await r.json();
+
+      if (d.token) {
+        // Išsaugoti token cookie
+        const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toUTCString();
+        document.cookie = 'stoken=' + d.token + ';expires=' + expires + ';path=/';
+        localStorage.setItem('srole', d.role || 'admin');
+        localStorage.setItem('svardas', d.vardas || 'Admin');
+        window.location.href = '/';
+      } else {
+        err.classList.add('show');
+        btn.disabled = false;
+        btn.textContent = 'Prisijungti';
+        document.getElementById('passInp').select();
+      }
+    } catch (e) {
+      err.textContent = 'Serverio klaida. Bandykite dar kartą.';
+      err.classList.add('show');
+      btn.disabled = false;
+      btn.textContent = 'Prisijungti';
+    }
   }
-}
-
-checkBiometric();
 </script>
 </body>
 </html>
