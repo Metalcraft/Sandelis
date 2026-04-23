@@ -21,9 +21,24 @@ pathlib.Path("templates").mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+GALVUTES = ["1.2", "1.4", "1.5", "1.6", "1.8", "2.0", "2.5", "3.0"]
+
 @app.on_event("startup")
 def startup():
     init_db()
+    db = next(get_db())
+    try:
+        for dydis in GALVUTES:
+            pid = "GALV-" + dydis
+            if not db.query(LazerisPrieke).filter(LazerisPrieke.preke_id == pid).first():
+                db.add(LazerisPrieke(preke_id=pid, pavadinimas="Galvute " + dydis + "mm", tipas="galvute", kiekis=0, min_kiekis=2))
+        if not db.query(LazerisPrieke).filter(LazerisPrieke.preke_id == "LESIS-STD").first():
+            db.add(LazerisPrieke(preke_id="LESIS-STD", pavadinimas="Lesis (standartinis)", tipas="lesis", kiekis=0, min_kiekis=1))
+        db.commit()
+    except Exception as e:
+        db.rollback()
+    finally:
+        db.close()
 
 @app.get("/manifest.json")
 async def manifest():
