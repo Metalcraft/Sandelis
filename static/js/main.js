@@ -1051,19 +1051,26 @@ function rLaz() {
     const empty = p.kiekis === 0;
     const warn  = !empty && p.kiekis <= p.minKiekis;
     const col   = empty ? 'var(--rd)' : warn ? 'var(--or)' : 'var(--gn)';
-    const bg    = empty ? 'rgba(255,80,80,.07)' : warn ? 'rgba(255,160,0,.07)' : '';
-    const lbl   = p.tipas === 'galvute'
+    const bgStyle = empty ? 'background:rgba(255,80,80,.07);' : warn ? 'background:rgba(255,160,0,.07);' : '';
+    const lbl = p.tipas === 'galvute'
       ? p.pavadinimas.replace('Galvute ','').replace('Galvutė ','')
       : p.pavadinimas;
-    return '<div style="background:var(--s1);' + (bg?'background:'+bg+';':'') + 'padding:16px 12px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;transition:.15s" onclick="lazPaimti('' + p.prekeId + '')" title="Spausti = paimti 1">'
-      + '<div style="font-size:13px;font-weight:700;color:var(--tx2)">' + lbl + '</div>'
-      + '<div style="font-size:38px;font-weight:900;font-family:monospace;color:' + col + ';line-height:1">' + p.kiekis + '</div>'
-      + '<div style="font-size:10px;color:var(--tx3)">vnt. liko</div>'
-      + (empty ? '<div style="font-size:10px;color:var(--rd);font-weight:700">⚠ TUŠČIA</div>' : warn ? '<div style="font-size:10px;color:var(--or);font-weight:700">⚠ MAŽAI</div>' : '')
-      + '<div style="display:flex;gap:6px;margin-top:4px">'
-      + '<button class="btn btn-p btn-sm" onclick="event.stopPropagation();lazPaimti('' + p.prekeId + '')" style="font-size:13px">− Paimti</button>'
-      + '<button class="btn btn-s btn-sm" onclick="event.stopPropagation();lazShowKiekis('' + p.prekeId + '','' + p.pavadinimas.replace(/'/g,"\'") + '',' + p.kiekis + ',' + p.minKiekis + ')" title="Koreguoti kiekį">✎</button>'
-      + '</div></div>';
+    const pid = p.prekeId;
+    const pav = p.pavadinimas.replace(/"/g,'&quot;');
+    const warnBadge = empty
+      ? '<div style="font-size:10px;color:var(--rd);font-weight:700">⚠ TUŠČIA</div>'
+      : warn ? '<div style="font-size:10px;color:var(--or);font-weight:700">⚠ MAŽAI</div>' : '';
+    return [
+      '<div style="background:var(--s1);'+bgStyle+'padding:16px 12px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer" onclick="lazPaimti(\'' + pid + '\')">',
+      '<div style="font-size:13px;font-weight:700;color:var(--tx2)">' + lbl + '</div>',
+      '<div style="font-size:38px;font-weight:900;font-family:monospace;color:' + col + ';line-height:1">' + p.kiekis + '</div>',
+      '<div style="font-size:10px;color:var(--tx3)">vnt. liko</div>',
+      warnBadge,
+      '<div style="display:flex;gap:6px;margin-top:4px">',
+      '<button class="btn btn-p btn-sm" onclick="event.stopPropagation();lazPaimti(\'' + pid + '\')" style="font-size:13px">− Paimti</button>',
+      '<button class="btn btn-s btn-sm" onclick="event.stopPropagation();lazShowKiekis(\'' + pid + '\',\'' + pav + '\',' + p.kiekis + ',' + p.minKiekis + ')" title="Koreguoti">&#9998;</button>',
+      '</div></div>'
+    ].join('');
   }
 
   lazGalvGrid.innerHTML = galv.length ? galv.map(itemCard).join('') : '<div class="empty-s">Nėra galvučių</div>';
