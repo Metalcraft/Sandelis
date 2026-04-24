@@ -26,6 +26,32 @@ GALVUTES = ["1.2", "1.4", "1.5", "1.6", "1.8", "2.0", "2.5", "3.0"]
 @app.on_event("startup")
 def startup():
     init_db()
+    # Prideti trukstamus stulpelius jei neegzistuoja (migracija)
+    from sqlalchemy import text
+    from database import engine
+    with engine.connect() as conn:
+        for col, typedef in [
+            ("prideta", "TIMESTAMP DEFAULT NOW()"),
+            ("min_kiekis", "INTEGER DEFAULT 2"),
+        ]:
+            try:
+                conn.execute(text(f"ALTER TABLE lazeris_prekes ADD COLUMN IF NOT EXISTS {col} {typedef}"))
+                conn.commit()
+            except Exception:
+                conn.rollback()
+        for col, typedef in [
+            ("plotis", "FLOAT DEFAULT 0"),
+            ("ilgis", "FLOAT DEFAULT 0"),
+            ("svoris", "FLOAT DEFAULT 0"),
+            ("sunaudota_kada", "TIMESTAMP"),
+            ("pastabos", "VARCHAR(500)"),
+        ]:
+            try:
+                conn.execute(text(f"ALTER TABLE likuciai ADD COLUMN IF NOT EXISTS {col} {typedef}"))
+                conn.commit()
+            except Exception:
+                conn.rollback()
+    # Sukurti galvutes ir lesi jei neegzistuoja
     db = next(get_db())
     try:
         for dydis in GALVUTES:
@@ -518,8 +544,8 @@ def delete_lazeris(preke_id: str, db: Session = Depends(get_db)):
 
 def _laz(p):
     return {"prekeId": p.preke_id, "pavadinimas": p.pavadinimas, "tipas": p.tipas,
-            "kiekis": p.kiekis, "minKiekis": p.min_kiekis,
-            "mazas": p.kiekis <= p.min_kiekis}
+            "kiekis": p.kiekis or 0, "minKiekis": p.min_kiekis or 2,
+            "mazas": (p.kiekis or 0) <= (p.min_kiekis or 2)}
 
 # ════ LIKUČIAI API ════
 
