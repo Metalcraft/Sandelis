@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Optional
 import os
 
-from database import get_db, init_db, Lakstai, AktyvusEtapas, Etapas, Uzsakymas, Detale, Sandelis, SandelioIstorijia
+from database import get_db, init_db, Lakstai, AktyvusEtapas, Etapas, Uzsakymas, Detale, Sandelis, SandelioIstorijia, Likutis, LazerisPreke, LazerisIstorijia
 
 app = FastAPI(title="Sandelio Sistema")
 TANKIS = 8000
@@ -366,6 +366,106 @@ async def siusti_email(db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(500, f"Klaida: {str(e)}")
 
+# ════ LIKUČIAI API ════
+
+@app.get("/api/likuciai")
+def get_likuciai(db: Session = Depends(get_db)):
+    items = db.query(Likutis).order_by(Likutis.storis, Likutis.prideta.desc()).all()
+    return {"likuciai": [_lik(l) for l in items]}
+
+@app.post("/api/likuciai")
+def add_likutis(data: dict, db: Session = Depends(get_db)):
+    import time
+    storis = float(data["storis"])
+    plotis = float(data["plotis"])
+    ilgis = float(data["ilgis"])
+    barcode = f"LIK-{int(storis)}mm-{int(plotis)}x{int(ilgis)}-{int(time.time())}"
+    svoris = round((plotis/1000) * (ilgis/1000) * (storis/1000) * 8000, 2)
+    l = Likutis(barcode=barcode, storis=storis, matmenys=f"{int(plotis)}x{int(ilgis)}",
+                plotis=plotis, ilgis=ilgis, svoris=svoris)
+    db.add(l); db.commit()
+    return {"success": True, "barcode": barcode, "svoris": svoris}
+
+@app.post("/api/likuciai/scan")
+def scan_likutis(data: dict, db: Session = Depends(get_db)):
+    barcode = data.get("barcode", "").strip()
+    l = db.query(Likutis).filter(Likutis.barcode == barcode).first()
+    if not l:
+        return {"notFound": True}
+    if l.sunaudota:
+        return {"jauSunaudota": True, "barcode": barcode}
+    l.sunaudota = True
+    l.sunaudota_kada = datetime.utcnow()
+    db.commit()
+    return {"success": True, "barcode": barcode, "storis": l.storis, "matmenys": l.matmenys}
+
+@app.delete("/api/likuciai/{barcode}")
+def delete_likutis(barcode: str, db: Session = Depends(get_db)):
+    l = db.query(Likutis).filter(Likutis.barcode == barcode).first()
+    if not l: raise HTTPException(404)
+    db.delete(l); db.commit()
+    return {"success": True}
+
+# ════ LAZERIS API ════
+
+LAZERIS_DEFAULT = [
+    {"tipas": "galvute", "dydis": "0.8",  "pavadinimas": "Galvutė 0.8mm"},
+    {"tipas": "galvute", "dydis": "1.0",  "pavadinimas": "Galvutė 1.0mm"},
+    {"tipas": "galvute", "dydis": "1.2",  "pavadinimas": "Galvutė 1.2mm"},
+    {"tipas": "galvute", "dydis": "1.4",  "pavadinimas": "Galvutė 1.4mm"},
+    {"tipas": "galvute", "dydis": "1.6",  "pavadinimas": "Galvutė 1.6mm"},
+    {"tipas": "galvute", "dydis": "2.0",  "pavadinimas": "Galvutė 2.0mm"},
+    {"tipas": "galvute", "dydis": "2.5",  "pavadinimas": "Galvutė 2.5mm"},
+    {"tipas": "galvute", "dydis": "3.0",  "pavadinimas": "Galvutė 3.0mm"},
+    {"tipas": "lesis",   "dydis": "std",  "pavadinimas": "Lešis"},
+]
+
+def _init_lazeris(db: Session):
+    for p in LAZERIS_DEFAULT:
+        pid = f"LAZ-{p['tipas']}-{p['dydis']}"
+        if not db.query(LazerisPreke).filter(LazerisPreke.preke_id == pid).first():
+            db.add(LazerisPreke(preke_id=pid, tipas=p["tipas"], dydis=p["dydis"],
+                                pavadinimas=p["pavadinimas"], kiekis=0, min_kiekis=2))
+    db.commit()
+
+@app.get("/api/lazeris")
+def get_lazeris(db: Session = Depends(get_db)):
+    _init_lazeris(db)
+    prekes = db.query(LazerisPreke).order_by(LazerisPreke.tipas, LazerisPreke.dydis).all()
+    return {"prekes": [_laz(p) for p in prekes]}
+
+@app.post("/api/lazeris/scan")
+def lazeris_scan(data: dict, db: Session = Depends(get_db)):
+    pid = data.get("preke_id", "").strip()
+    p = db.query(LazerisPreke).filter(LazerisPreke.preke_id == pid).first()
+    if not p: return {"notFound": True}
+    if p.kiekis <= 0: return {"tusti": True, "pavadinimas": p.pavadinimas, "kiekis": 0}
+    p.kiekis -= 1
+    db.add(LazerisIstorijia(preke_id=pid, veiksmas="paimta", kiekis=1, likutis=p.kiekis))
+    db.commit()
+    return {"success": True, "pavadinimas": p.pavadinimas, "kiekis": p.kiekis, "mazas": p.kiekis <= p.min_kiekis}
+
+@app.put("/api/lazeris/{preke_id}/kiekis")
+def update_lazeris_kiekis(preke_id: str, data: dict, db: Session = Depends(get_db)):
+    p = db.query(LazerisPreke).filter(LazerisPreke.preke_id == preke_id).first()
+    if not p: raise HTTPException(404)
+    naujas = int(data.get("kiekis", 0))
+    skirt = abs(naujas - p.kiekis)
+    v = "prideta" if naujas > p.kiekis else "paimta"
+    p.kiekis = naujas
+    if skirt > 0:
+        db.add(LazerisIstorijia(preke_id=preke_id, veiksmas=v, kiekis=skirt, likutis=naujas))
+    db.commit()
+    return _laz(p)
+
+@app.put("/api/lazeris/{preke_id}/min")
+def update_lazeris_min(preke_id: str, data: dict, db: Session = Depends(get_db)):
+    p = db.query(LazerisPreke).filter(LazerisPreke.preke_id == preke_id).first()
+    if not p: raise HTTPException(404)
+    p.min_kiekis = int(data.get("min_kiekis", 2))
+    db.commit()
+    return _laz(p)
+
 # ════ PAGALBINES FUNKCIJOS ════
 
 def _lk(l):
@@ -397,6 +497,18 @@ def _stk(s):
             "prideta": s.prideta.strftime("%Y-%m-%d %H:%M:%S") if s.prideta else "",
             "pastabos": s.pastabos or ""}
 
+def _lik(l):
+    return {"barcode": l.barcode, "storis": l.storis, "matmenys": l.matmenys,
+            "plotis": l.plotis, "ilgis": l.ilgis, "svoris": l.svoris,
+            "sunaudota": l.sunaudota,
+            "sunaudotaKada": l.sunaudota_kada.strftime("%Y-%m-%d %H:%M") if l.sunaudota_kada else "",
+            "prideta": l.prideta.strftime("%Y-%m-%d %H:%M") if l.prideta else ""}
+
+def _laz(p):
+    return {"prekeId": p.preke_id, "tipas": p.tipas, "dydis": p.dydis,
+            "pavadinimas": p.pavadinimas, "kiekis": p.kiekis,
+            "minKiekis": p.min_kiekis, "mazas": p.kiekis <= p.min_kiekis}
+
 def _recalc(uzs_id, db):
     dets = db.query(Detale).filter(Detale.uzsakymo_id == uzs_id).all()
     u = db.query(Uzsakymas).filter(Uzsakymas.uzs_id == uzs_id).first()
@@ -411,8 +523,13 @@ if __name__ == "__main__":
 
 
 # ════ AUTH ════
-ADMIN_PASS = os.getenv("ADMIN_PASS", "admin123")
-TOKENS = {}
+# Slaptažodžiai saugomi atmintyje — keičiami per API
+# Paleidus iš naujo grįžta į numatytuosius (arba iš env)
+_auth = {
+    "admin_pass": os.getenv("ADMIN_PASS", "admin123"),
+    "worker_pin": os.getenv("WORKER_PIN", "1234"),
+}
+_TOKENS = {}  # token -> {"role": ..., "vardas": ...}
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
@@ -420,26 +537,49 @@ async def login_page(request: Request):
 
 @app.post("/api/auth/login")
 def auth_login(data: dict):
-    import secrets, time
-    if data.get("slaptazodis","") == ADMIN_PASS:
+    import secrets
+    slaptazodis = data.get("slaptazodis", "")
+    pin = data.get("pin", "")
+    # Admin prisijungimas su slaptažodžiu
+    if slaptazodis and slaptazodis == _auth["admin_pass"]:
         token = secrets.token_hex(16)
-        TOKENS[token] = {"role": "admin"}
+        _TOKENS[token] = {"role": "admin", "vardas": "Admin"}
         return {"token": token, "role": "admin", "vardas": "Admin"}
-    return {"klaida": "Neteisingas slaptažodis"}
+    # Darbuotojas prisijungia su PIN
+    if pin and pin == _auth["worker_pin"]:
+        token = secrets.token_hex(16)
+        _TOKENS[token] = {"role": "darbuotojas", "vardas": "Darbuotojas"}
+        return {"token": token, "role": "darbuotojas", "vardas": "Darbuotojas"}
+    return {"klaida": "Neteisingas slaptažodis arba PIN"}
 
 @app.get("/api/auth/me")
 def auth_me(token: str = ""):
-    if token in TOKENS:
-        return {"ok": True, "role": "admin", "vardas": "Admin"}
+    if token in _TOKENS:
+        u = _TOKENS[token]
+        return {"ok": True, "role": u["role"], "vardas": u["vardas"]}
     raise HTTPException(401, "Neprisijungęs")
 
 @app.post("/api/auth/logout")
 def auth_logout(data: dict):
-    TOKENS.pop(data.get("token",""), None)
+    _TOKENS.pop(data.get("token", ""), None)
     return {"ok": True}
 
 @app.put("/api/auth/slaptazodis")
-def change_pass(data: dict): return {"ok": True}
+def change_pass(data: dict):
+    # Patikrina seną slaptažodį prieš keičiant
+    senas = data.get("senas", "")
+    naujas = data.get("slaptazodis", "")
+    if not naujas:
+        raise HTTPException(400, "Nenurodytas naujas slaptažodis")
+    if senas and senas != _auth["admin_pass"]:
+        raise HTTPException(403, "Neteisingas dabartinis slaptažodis")
+    _auth["admin_pass"] = naujas
+    return {"ok": True}
 
 @app.put("/api/auth/pin")
-def change_pin(data: dict): return {"ok": True}
+def change_pin(data: dict):
+    naujas = data.get("pin", "")
+    if not naujas:
+        raise HTTPException(400, "Nenurodytas naujas PIN")
+    _auth["worker_pin"] = naujas
+    return {"ok": True}
