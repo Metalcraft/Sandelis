@@ -19,8 +19,6 @@ def get_db():
     finally:
         db.close()
 
-# ════ MODELIAI ════
-
 class Lakstai(Base):
     __tablename__ = "lakstai"
     id = Column(Integer, primary_key=True, index=True)
@@ -105,30 +103,5 @@ class SandelioIstorijia(Base):
     verte = Column(Float, default=0)
     pastabos = Column(String(500), nullable=True)
 
-class LazerisPrieke(Base):
-    __tablename__ = "lazeris_prekes"
-    id = Column(Integer, primary_key=True)
-    preke_id = Column(String(100), unique=True, index=True)
-    pavadinimas = Column(String(300))
-    tipas = Column(String(50))  # 'galvute' arba 'lesis'
-    kiekis = Column(Integer, default=0)
-    min_kiekis = Column(Integer, default=2)
-    prideta = Column(DateTime, default=datetime.utcnow)
-
-class Likutis(Base):
-    __tablename__ = "likuciai"
-    id = Column(Integer, primary_key=True)
-    barcode = Column(String(100), unique=True, index=True)
-    storis = Column(Float)
-    matmenys = Column(String(100))
-    plotis = Column(Float, default=0)
-    ilgis = Column(Float, default=0)
-    svoris = Column(Float, default=0)
-    sunaudota = Column(Boolean, default=False)
-    sunaudota_kada = Column(DateTime, nullable=True)
-    prideta = Column(DateTime, default=datetime.utcnow)
-    pastabos = Column(String(500), nullable=True)
-
-# ════ init_db VISADA PABAIGOJE ════
 def init_db():
     Base.metadata.create_all(bind=engine)
