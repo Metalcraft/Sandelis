@@ -295,11 +295,11 @@ def get_istorija(db: Session = Depends(get_db)):
 # ════ LAZERIS ════
 
 LAZERIS_DEFAULT = [
-    {"tipas": "galvute", "dydis": "0.8",  "pavadinimas": "Galvutė 0.8mm"},
-    {"tipas": "galvute", "dydis": "1.0",  "pavadinimas": "Galvutė 1.0mm"},
     {"tipas": "galvute", "dydis": "1.2",  "pavadinimas": "Galvutė 1.2mm"},
     {"tipas": "galvute", "dydis": "1.4",  "pavadinimas": "Galvutė 1.4mm"},
+    {"tipas": "galvute", "dydis": "1.5",  "pavadinimas": "Galvutė 1.5mm"},
     {"tipas": "galvute", "dydis": "1.6",  "pavadinimas": "Galvutė 1.6mm"},
+    {"tipas": "galvute", "dydis": "1.8",  "pavadinimas": "Galvutė 1.8mm"},
     {"tipas": "galvute", "dydis": "2.0",  "pavadinimas": "Galvutė 2.0mm"},
     {"tipas": "galvute", "dydis": "2.5",  "pavadinimas": "Galvutė 2.5mm"},
     {"tipas": "galvute", "dydis": "3.0",  "pavadinimas": "Galvutė 3.0mm"},
@@ -307,6 +307,15 @@ LAZERIS_DEFAULT = [
 ]
 
 def _init_lazeris(db: Session):
+    # Teisingi preke_id sąrašas
+    valid_ids = {f"LAZ-{p['tipas']}-{p['dydis']}" for p in LAZERIS_DEFAULT}
+    # Ištrinti senus/neteisingus įrašus
+    all_prekes = db.query(LazerisPreke).all()
+    for p in all_prekes:
+        if p.preke_id not in valid_ids:
+            db.delete(p)
+    db.commit()
+    # Pridėti trūkstamus
     for p in LAZERIS_DEFAULT:
         preke_id = f"LAZ-{p['tipas']}-{p['dydis']}"
         if not db.query(LazerisPreke).filter(LazerisPreke.preke_id == preke_id).first():
