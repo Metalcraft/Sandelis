@@ -5,10 +5,9 @@ from fastapi.templating import Jinja2Templates
 from fastapi import Request
 from sqlalchemy.orm import Session
 from datetime import datetime
-from typing import Optional
 import os
 
-from database import get_db, init_db, Lakstai, AktyvusEtapas, Etapas, Uzsakymas, Detale, Sandelis, SandelioIstorijia
+from database import get_db, init_db, Lakstai, AktyvusEtapas, Etapas, Uzsakymas, Detale, Sandelis, SandelioIstorijia, LazerisPreke, LazerisIstorijia
 
 app = FastAPI(title="Sandelio Sistema")
 TANKIS = 8000
@@ -24,6 +23,8 @@ templates = Jinja2Templates(directory="templates")
 @app.on_event("startup")
 def startup():
     init_db()
+
+# ════ STATINIAI ════
 
 @app.get("/manifest.json")
 async def manifest():
@@ -44,17 +45,68 @@ async def icon():
 async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-# ════ ETAPAI API ════
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+# ════ AUTH ════
+
+_auth = {
+    "admin_pass": os.getenv("ADMIN_PASS", "admin123"),
+    "worker_pin": os.getenv("WORKER_PIN", "1234"),
+}
+_TOKENS = {}
+
+@app.post("/api/auth/login")
+def auth_login(data: dict):
+    import secrets
+    slaptazodis = data.get("slaptazodis", "")
+    pin = data.get("pin", "")
+    if slaptazodis and slaptazodis == _auth["admin_pass"]:
+        token = secrets.token_hex(16)
+        _TOKENS[token] = {"role": "admin", "vardas": "Admin"}
+        return {"token": token, "role": "admin", "vardas": "Admin"}
+    if pin and pin == _auth["worker_pin"]:
+        token = secrets.token_hex(16)
+        _TOKENS[token] = {"role": "darbuotojas", "vardas": "Darbuotojas"}
+        return {"token": token, "role": "darbuotojas", "vardas": "Darbuotojas"}
+    return {"klaida": "Neteisingas slaptažodis arba PIN"}
+
+@app.get("/api/auth/me")
+def auth_me(token: str = ""):
+    if token in _TOKENS:
+        u = _TOKENS[token]
+        return {"ok": True, "role": u["role"], "vardas": u["vardas"]}
+    raise HTTPException(401, "Neprisijungęs")
+
+@app.post("/api/auth/logout")
+def auth_logout(data: dict):
+    _TOKENS.pop(data.get("token", ""), None)
+    return {"ok": True}
+
+@app.put("/api/auth/slaptazodis")
+def change_pass(data: dict):
+    naujas = data.get("slaptazodis", "")
+    if not naujas:
+        raise HTTPException(400, "Nenurodytas naujas slaptažodis")
+    _auth["admin_pass"] = naujas
+    return {"ok": True}
+
+@app.put("/api/auth/pin")
+def change_pin(data: dict):
+    naujas = data.get("pin", "")
+    if not naujas:
+        raise HTTPException(400, "Nenurodytas naujas PIN")
+    _auth["worker_pin"] = naujas
+    return {"ok": True}
+
+# ════ ETAPAI ════
 
 @app.get("/api/etapai/aktyvus")
 def get_aktyvus_etapai(db: Session = Depends(get_db)):
     result = []
     seen = set()
-    # Etapai su lakstais
-    rows = db.query(Lakstai.etapas).filter(
-        Lakstai.etapas != None,
-        ~Lakstai.etapas.like("ARCH_%")
-    ).distinct().all()
+    rows = db.query(Lakstai.etapas).filter(Lakstai.etapas != None, ~Lakstai.etapas.like("ARCH_%")).distinct().all()
     for (etapas,) in rows:
         if etapas in seen: continue
         seen.add(etapas)
@@ -62,9 +114,7 @@ def get_aktyvus_etapai(db: Session = Depends(get_db)):
         s = sum(1 for l in items if l.surinkta)
         p = sum(1 for l in items if l.perduota)
         result.append({"pavadinimas": etapas, "display": etapas, "total": len(items), "surinkta": s, "perduota": p, "laukia": len(items)-s})
-    # Issaugoti tusci etapai
-    tusci = db.query(AktyvusEtapas).all()
-    for e in tusci:
+    for e in db.query(AktyvusEtapas).all():
         if e.pavadinimas not in seen:
             seen.add(e.pavadinimas)
             result.append({"pavadinimas": e.pavadinimas, "display": e.pavadinimas, "total": 0, "surinkta": 0, "perduota": 0, "laukia": 0})
@@ -74,35 +124,25 @@ def get_aktyvus_etapai(db: Session = Depends(get_db)):
 @app.post("/api/etapai/issaugoti")
 def issaugoti_etapa(data: dict, db: Session = Depends(get_db)):
     name = data.get("pavadinimas", "").strip()
-    if not name:
-        raise HTTPException(400, "Tuscias pavadinimas")
+    if not name: raise HTTPException(400, "Tuscias pavadinimas")
     try:
-        existing = db.query(AktyvusEtapas).filter(AktyvusEtapas.pavadinimas == name).first()
-        if not existing:
-            e = AktyvusEtapas(pavadinimas=name)
-            db.add(e)
-            db.commit()
+        if not db.query(AktyvusEtapas).filter(AktyvusEtapas.pavadinimas == name).first():
+            db.add(AktyvusEtapas(pavadinimas=name)); db.commit()
         return {"success": True}
     except Exception as ex:
-        db.rollback()
-        return {"success": True, "note": str(ex)[:100]}
+        db.rollback(); return {"success": True, "note": str(ex)[:100]}
 
 @app.post("/api/etapai/archyvuoti")
 def archyvuoti_etapa(data: dict, db: Session = Depends(get_db)):
     etapas = data.get("etapas")
-    if not etapas:
-        raise HTTPException(400, "Nenurodytas etapas")
+    if not etapas: raise HTTPException(400, "Nenurodytas etapas")
     items = db.query(Lakstai).filter(Lakstai.etapas == etapas).all()
     arch_name = "ARCH_" + etapas + "_" + datetime.utcnow().strftime("%Y%m%d%H%M")
-    for l in items:
-        l.etapas = arch_name
-    # Istrinti is aktyviu etapu
+    for l in items: l.etapas = arch_name
     db.query(AktyvusEtapas).filter(AktyvusEtapas.pavadinimas == etapas).delete()
-    # Issaugoti i archyvu lentele
-    e = Etapas(pavadinimas=arch_name, is_viso=len(items),
-               surinkta_sk=sum(1 for l in items if l.surinkta),
-               perduota_sk=sum(1 for l in items if l.perduota))
-    db.add(e)
+    db.add(Etapas(pavadinimas=arch_name, is_viso=len(items),
+                  surinkta_sk=sum(1 for l in items if l.surinkta),
+                  perduota_sk=sum(1 for l in items if l.perduota)))
     db.commit()
     return {"success": True, "archiveName": arch_name, "total": len(items)}
 
@@ -113,94 +153,76 @@ def get_archyvai(db: Session = Depends(get_db)):
 
 @app.get("/api/etapai/lakstai/{etapas}")
 def get_etapo_lakstai(etapas: str, db: Session = Depends(get_db)):
-    items = db.query(Lakstai).filter(Lakstai.etapas == etapas).all()
-    return {"orders": [_lk(l) for l in items]}
+    return {"orders": [_lk(l) for l in db.query(Lakstai).filter(Lakstai.etapas == etapas).all()]}
 
-# ════ LAKSTAI API ════
+# ════ LAKSTAI ════
 
 @app.post("/api/lakstai/register_v2")
 def register_lakstas_v2(data: dict, db: Session = Depends(get_db)):
     kodas = data["kodas"]
-    etapas = data.get("etapas")
     existing = db.query(Lakstai).filter(Lakstai.kodas == kodas).first()
-    if existing:
-        return {"success": False, "alreadyExists": True, "order": _lk(existing)}
-    l = Lakstai(kodas=kodas, etapas=etapas)
+    if existing: return {"success": False, "alreadyExists": True, "order": _lk(existing)}
+    l = Lakstai(kodas=kodas, etapas=data.get("etapas"))
     db.add(l); db.commit(); db.refresh(l)
     return {"success": True, "kodas": l.kodas}
 
 @app.post("/api/lakstai/next_v2")
 def next_step_v2(data: dict, db: Session = Depends(get_db)):
-    kodas = data["kodas"]
-    etapas = data.get("etapas")
+    kodas = data["kodas"]; etapas = data.get("etapas")
     l = db.query(Lakstai).filter(Lakstai.kodas == kodas).first()
-    if not l:
-        return {"success": False, "message": "Nerastas"}
-    if l.etapas != etapas:
-        return {"success": False, "wrongStage": True, "actualStage": l.etapas}
-    if l.perduota:
-        return {"success": False, "alreadyDelivered": True}
+    if not l: return {"success": False, "message": "Nerastas"}
+    if l.etapas != etapas: return {"success": False, "wrongStage": True, "actualStage": l.etapas}
+    if l.perduota: return {"success": False, "alreadyDelivered": True}
     now = datetime.utcnow()
     if l.surinkta:
-        l.perduota = True; l.perduota_kada = now
-        db.commit()
+        l.perduota = True; l.perduota_kada = now; db.commit()
         return {"success": True, "step": "delivered"}
     else:
-        l.surinkta = True; l.surinkta_kada = now
-        db.commit()
+        l.surinkta = True; l.surinkta_kada = now; db.commit()
         return {"success": True, "step": "collected"}
 
 @app.delete("/api/lakstai/{kodas}")
 def delete_lakstas(kodas: str, db: Session = Depends(get_db)):
     l = db.query(Lakstai).filter(Lakstai.kodas == kodas).first()
     if not l: raise HTTPException(404)
-    db.delete(l); db.commit()
-    return {"success": True}
+    db.delete(l); db.commit(); return {"success": True}
 
-# ════ DXF API ════
+# ════ DXF ════
 
 @app.get("/api/uzsakymai")
 def get_uzsakymai(db: Session = Depends(get_db)):
-    items = db.query(Uzsakymas).order_by(Uzsakymas.sukurta.desc()).all()
-    return {"orders": [_uzs(u) for u in items]}
+    return {"orders": [_uzs(u) for u in db.query(Uzsakymas).order_by(Uzsakymas.sukurta.desc()).all()]}
 
 @app.post("/api/uzsakymai")
 def create_uzsakymas(data: dict, db: Session = Depends(get_db)):
     uzs_id = "UZS-" + str(int(datetime.utcnow().timestamp() * 1000))
-    u = Uzsakymas(uzs_id=uzs_id, klientas=data.get("klientas", ""), aprasymas=data.get("aprasymas", ""), pastabos=data.get("pastabos", ""))
-    db.add(u); db.commit()
-    return {"success": True, "id": uzs_id}
+    db.add(Uzsakymas(uzs_id=uzs_id, klientas=data.get("klientas",""), aprasymas=data.get("aprasymas",""), pastabos=data.get("pastabos","")))
+    db.commit(); return {"success": True, "id": uzs_id}
 
 @app.put("/api/uzsakymai/{uzs_id}/statusas")
 def update_statusas(uzs_id: str, data: dict, db: Session = Depends(get_db)):
     u = db.query(Uzsakymas).filter(Uzsakymas.uzs_id == uzs_id).first()
     if not u: raise HTTPException(404)
-    u.statusas = data["statusas"]; db.commit()
-    return {"success": True}
+    u.statusas = data["statusas"]; db.commit(); return {"success": True}
 
 @app.delete("/api/uzsakymai/{uzs_id}")
 def delete_uzsakymas(uzs_id: str, db: Session = Depends(get_db)):
     u = db.query(Uzsakymas).filter(Uzsakymas.uzs_id == uzs_id).first()
     if not u: raise HTTPException(404)
-    db.delete(u); db.commit()
-    return {"success": True}
+    db.delete(u); db.commit(); return {"success": True}
 
 @app.get("/api/uzsakymai/{uzs_id}/detales")
 def get_detales(uzs_id: str, db: Session = Depends(get_db)):
-    items = db.query(Detale).filter(Detale.uzsakymo_id == uzs_id).order_by(Detale.storis, Detale.pavadinimas).all()
-    return {"details": [_det(d) for d in items]}
+    return {"details": [_det(d) for d in db.query(Detale).filter(Detale.uzsakymo_id == uzs_id).order_by(Detale.storis, Detale.pavadinimas).all()]}
 
 @app.post("/api/detales")
 def add_detale(data: dict, db: Session = Depends(get_db)):
     det_id = "DET-" + str(int(datetime.utcnow().timestamp() * 1000))
-    storis = float(data.get("storis", 0))
-    plotas = float(data.get("plotas", 0))
-    kiekis = int(data.get("kiekis", 1))
-    svoris = round(plotas * (storis / 10) * (TANKIS / 1000) * kiekis / 1000, 3)
-    d = Detale(det_id=det_id, uzsakymo_id=data["uzsakymoId"], pavadinimas=data.get("pavadinimas", "Detale"),
-               storis=storis, plotas=plotas, kiekis=kiekis, svoris=svoris, konturas=data.get("konturas", ""))
-    db.add(d); db.commit()
-    _recalc(data["uzsakymoId"], db)
+    storis = float(data.get("storis", 0)); plotas = float(data.get("plotas", 0)); kiekis = int(data.get("kiekis", 1))
+    svoris = round(plotas * (storis/10) * (TANKIS/1000) * kiekis / 1000, 3)
+    db.add(Detale(det_id=det_id, uzsakymo_id=data["uzsakymoId"], pavadinimas=data.get("pavadinimas","Detale"),
+                  storis=storis, plotas=plotas, kiekis=kiekis, svoris=svoris, konturas=data.get("konturas","")))
+    db.commit(); _recalc(data["uzsakymoId"], db)
     return {"success": True, "detId": det_id, "svoris": svoris}
 
 @app.put("/api/detales/{det_id}")
@@ -209,82 +231,121 @@ def update_detale(det_id: str, data: dict, db: Session = Depends(get_db)):
     if not d: raise HTTPException(404)
     if "storis" in data: d.storis = float(data["storis"])
     if "kiekis" in data: d.kiekis = int(data["kiekis"])
-    if "svoris" in data:
-        d.svoris = float(data["svoris"])
-    else:
-        d.svoris = round(d.plotas * (d.storis / 10) * (TANKIS / 1000) * d.kiekis / 1000, 3)
-    db.commit()
-    _recalc(d.uzsakymo_id, db)
+    d.svoris = float(data["svoris"]) if "svoris" in data else round(d.plotas*(d.storis/10)*(TANKIS/1000)*d.kiekis/1000, 3)
+    db.commit(); _recalc(d.uzsakymo_id, db)
     return {"success": True, "svoris": d.svoris}
 
 @app.delete("/api/detales/{det_id}")
 def delete_detale(det_id: str, db: Session = Depends(get_db)):
     d = db.query(Detale).filter(Detale.det_id == det_id).first()
     if not d: raise HTTPException(404)
-    uzs_id = d.uzsakymo_id; db.delete(d); db.commit()
-    _recalc(uzs_id, db)
+    uzs_id = d.uzsakymo_id; db.delete(d); db.commit(); _recalc(uzs_id, db)
     return {"success": True}
 
-# ════ SANDELIS API ════
+# ════ SANDELIS ════
 
 @app.get("/api/sandelis")
 def get_sandelis(db: Session = Depends(get_db)):
-    items = db.query(Sandelis).order_by(Sandelis.storis).all()
-    return {"stock": [_stk(s) for s in items]}
+    return {"stock": [_stk(s) for s in db.query(Sandelis).order_by(Sandelis.storis).all()]}
 
 @app.post("/api/sandelis/gauti")
 def gauti(data: dict, db: Session = Depends(get_db)):
-    storis = float(data["storis"])
-    w = float(data["plotis"])
-    l = float(data["ilgis"])
-    qty = int(data["kiekis"])
-    kaina = float(data.get("kaina", 0))
-    svoris_vnt = round((w/1000) * (l/1000) * (storis/1000) * TANKIS, 2)
-    liko_kg = round(svoris_vnt * qty, 2)
-    liko_t = round(liko_kg / 1000, 3)
-    verte = round(liko_t * kaina, 2)
-    stk_id = "STK-" + str(int(datetime.utcnow().timestamp() * 1000))
-    s = Sandelis(stk_id=stk_id, storis=storis, matmenys=f"{int(w)}x{int(l)}", svoris_vnt=svoris_vnt,
-                 gauta_vnt=qty, liko_vnt=qty, liko_kg=liko_kg, liko_t=liko_t, kaina_kg=kaina, verte=verte,
-                 pastabos=data.get("pastabos", ""))
-    db.add(s)
-    hist = SandelioIstorijia(veiksmas="Gauta", storis=storis, matmenys=f"{int(w)}x{int(l)}", kiekis=qty,
+    storis = float(data["storis"]); w = float(data["plotis"]); l = float(data["ilgis"])
+    qty = int(data["kiekis"]); kaina = float(data.get("kaina", 0))
+    svoris_vnt = round((w/1000)*(l/1000)*(storis/1000)*TANKIS, 2)
+    liko_kg = round(svoris_vnt*qty, 2); liko_t = round(liko_kg/1000, 3); verte = round(liko_t*kaina, 2)
+    stk_id = "STK-" + str(int(datetime.utcnow().timestamp()*1000))
+    db.add(Sandelis(stk_id=stk_id, storis=storis, matmenys=f"{int(w)}x{int(l)}", svoris_vnt=svoris_vnt,
+                    gauta_vnt=qty, liko_vnt=qty, liko_kg=liko_kg, liko_t=liko_t, kaina_kg=kaina, verte=verte,
+                    pastabos=data.get("pastabos","")))
+    db.add(SandelioIstorijia(veiksmas="Gauta", storis=storis, matmenys=f"{int(w)}x{int(l)}", kiekis=qty,
                               svoris_vnt=svoris_vnt, svoris_is_viso=liko_kg, kaina_kg=kaina, verte=verte,
-                              pastabos=data.get("pastabos", ""))
-    db.add(hist); db.commit()
+                              pastabos=data.get("pastabos","")))
+    db.commit()
     return {"success": True, "id": stk_id, "svorisVnt": svoris_vnt, "likoT": liko_t, "verte": verte}
 
 @app.post("/api/sandelis/{stk_id}/naudoti")
 def naudoti(stk_id: str, data: dict, db: Session = Depends(get_db)):
     s = db.query(Sandelis).filter(Sandelis.stk_id == stk_id).first()
     if not s: raise HTTPException(404)
-    qty = int(data["kiekis"])
-    s.sunaudota_vnt += qty
+    qty = int(data["kiekis"]); s.sunaudota_vnt += qty
     s.liko_vnt = max(0, s.gauta_vnt - s.sunaudota_vnt)
-    s.liko_kg = round(s.liko_vnt * s.svoris_vnt, 2)
-    s.liko_t = round(s.liko_kg / 1000, 3)
-    s.verte = round(s.liko_t * s.kaina_kg, 2)
-    hist = SandelioIstorijia(veiksmas="Sunaudota", storis=s.storis, matmenys=s.matmenys, kiekis=qty,
+    s.liko_kg = round(s.liko_vnt*s.svoris_vnt, 2); s.liko_t = round(s.liko_kg/1000, 3)
+    s.verte = round(s.liko_t*s.kaina_kg, 2)
+    db.add(SandelioIstorijia(veiksmas="Sunaudota", storis=s.storis, matmenys=s.matmenys, kiekis=qty,
                               svoris_vnt=s.svoris_vnt, svoris_is_viso=round(qty*s.svoris_vnt, 2),
                               kaina_kg=s.kaina_kg, verte=round((qty*s.svoris_vnt/1000)*s.kaina_kg, 2),
-                              pastabos=data.get("pastabos", ""))
-    db.add(hist); db.commit()
-    return {"success": True, "likoVnt": s.liko_vnt, "likoKg": s.liko_kg}
+                              pastabos=data.get("pastabos","")))
+    db.commit(); return {"success": True, "likoVnt": s.liko_vnt, "likoKg": s.liko_kg}
 
 @app.delete("/api/sandelis/{stk_id}")
 def delete_stk(stk_id: str, db: Session = Depends(get_db)):
     s = db.query(Sandelis).filter(Sandelis.stk_id == stk_id).first()
     if not s: raise HTTPException(404)
-    db.delete(s); db.commit()
-    return {"success": True}
+    db.delete(s); db.commit(); return {"success": True}
 
 @app.get("/api/sandelis/istorija")
 def get_istorija(db: Session = Depends(get_db)):
     items = db.query(SandelioIstorijia).order_by(SandelioIstorijia.data.desc()).limit(100).all()
     return {"history": [{"data": h.data.strftime("%Y-%m-%d %H:%M"), "veiksmas": h.veiksmas,
-                          "storis": h.storis, "matmenys": h.matmenys, "kiekis": h.kiekis,
-                          "svorisVnt": h.svoris_vnt, "svorisIsViso": h.svoris_is_viso,
-                          "kainaKg": h.kaina_kg, "verte": h.verte} for h in items]}
+                         "storis": h.storis, "matmenys": h.matmenys, "kiekis": h.kiekis,
+                         "svorisVnt": h.svoris_vnt, "svorisIsViso": h.svoris_is_viso,
+                         "kainaKg": h.kaina_kg, "verte": h.verte} for h in items]}
+
+# ════ LAZERIS ════
+
+LAZERIS_DEFAULT = [
+    {"tipas": "galvute", "dydis": "0.8",  "pavadinimas": "Galvutė 0.8mm"},
+    {"tipas": "galvute", "dydis": "1.0",  "pavadinimas": "Galvutė 1.0mm"},
+    {"tipas": "galvute", "dydis": "1.2",  "pavadinimas": "Galvutė 1.2mm"},
+    {"tipas": "galvute", "dydis": "1.4",  "pavadinimas": "Galvutė 1.4mm"},
+    {"tipas": "galvute", "dydis": "1.6",  "pavadinimas": "Galvutė 1.6mm"},
+    {"tipas": "galvute", "dydis": "2.0",  "pavadinimas": "Galvutė 2.0mm"},
+    {"tipas": "galvute", "dydis": "2.5",  "pavadinimas": "Galvutė 2.5mm"},
+    {"tipas": "galvute", "dydis": "3.0",  "pavadinimas": "Galvutė 3.0mm"},
+    {"tipas": "lesis",   "dydis": "std",  "pavadinimas": "Lešis"},
+]
+
+def _init_lazeris(db: Session):
+    for p in LAZERIS_DEFAULT:
+        preke_id = f"LAZ-{p['tipas']}-{p['dydis']}"
+        if not db.query(LazerisPreke).filter(LazerisPreke.preke_id == preke_id).first():
+            db.add(LazerisPreke(preke_id=preke_id, tipas=p["tipas"], dydis=p["dydis"],
+                                pavadinimas=p["pavadinimas"], kiekis=0, min_kiekis=2))
+    db.commit()
+
+@app.get("/api/lazeris")
+def get_lazeris(db: Session = Depends(get_db)):
+    _init_lazeris(db)
+    return {"prekes": [_laz(p) for p in db.query(LazerisPreke).order_by(LazerisPreke.tipas, LazerisPreke.dydis).all()]}
+
+@app.post("/api/lazeris/scan")
+def lazeris_scan(data: dict, db: Session = Depends(get_db)):
+    preke_id = data.get("preke_id", "").strip()
+    p = db.query(LazerisPreke).filter(LazerisPreke.preke_id == preke_id).first()
+    if not p: return {"notFound": True}
+    if p.kiekis <= 0: return {"tusti": True, "pavadinimas": p.pavadinimas, "kiekis": 0}
+    p.kiekis -= 1
+    db.add(LazerisIstorijia(preke_id=preke_id, veiksmas="paimta", kiekis=1, likutis=p.kiekis))
+    db.commit()
+    return {"success": True, "pavadinimas": p.pavadinimas, "kiekis": p.kiekis, "mazas": p.kiekis <= p.min_kiekis}
+
+@app.put("/api/lazeris/{preke_id}/kiekis")
+def update_lazeris_kiekis(preke_id: str, data: dict, db: Session = Depends(get_db)):
+    p = db.query(LazerisPreke).filter(LazerisPreke.preke_id == preke_id).first()
+    if not p: raise HTTPException(404)
+    senas = p.kiekis; naujas = int(data.get("kiekis", 0)); p.kiekis = naujas
+    skirtumas = abs(naujas - senas)
+    if skirtumas > 0:
+        db.add(LazerisIstorijia(preke_id=preke_id, veiksmas="prideta" if naujas > senas else "paimta",
+                                kiekis=skirtumas, likutis=naujas))
+    db.commit(); return _laz(p)
+
+@app.put("/api/lazeris/{preke_id}/min")
+def update_lazeris_min(preke_id: str, data: dict, db: Session = Depends(get_db)):
+    p = db.query(LazerisPreke).filter(LazerisPreke.preke_id == preke_id).first()
+    if not p: raise HTTPException(404)
+    p.min_kiekis = int(data.get("min_kiekis", 2)); db.commit(); return _laz(p)
 
 # ════ ATASKAITA ════
 
@@ -311,7 +372,7 @@ def ataskaita(nuo: str, iki: str, db: Session = Depends(get_db)):
         },
         "likutis": {
             "vnt": sum(s.liko_vnt for s in stock),
-            "t": round(sum(s.liko_kg for s in stock) / 1000, 3),
+            "t": round(sum(s.liko_kg for s in stock)/1000, 3),
             "verte": round(sum(s.verte for s in stock), 2),
         }
     }
@@ -328,12 +389,8 @@ async def siusti_email(db: Session = Depends(get_db)):
     smtp_user = os.getenv("SMTP_USER", "info@metalcraft.lt")
     smtp_pass = os.getenv("SMTP_PASS", "")
     gaivejas = os.getenv("EMAIL_TO", "gintaras@metalikalt.eu")
-    if not smtp_pass:
-        raise HTTPException(400, "SMTP_PASS nenurodytas")
-    items = db.query(Lakstai).filter(
-        Lakstai.etapas != None,
-        ~Lakstai.etapas.like("ARCH_%")
-    ).all()
+    if not smtp_pass: raise HTTPException(400, "SMTP_PASS nenurodytas")
+    items = db.query(Lakstai).filter(Lakstai.etapas != None, ~Lakstai.etapas.like("ARCH_%")).all()
     now = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
     surinkti = sorted([l for l in items if l.surinkta and not l.perduota], key=lambda x: x.kodas)
     perduoti = sorted([l for l in items if l.perduota], key=lambda x: x.kodas)
@@ -346,11 +403,11 @@ async def siusti_email(db: Session = Depends(get_db)):
     <div style='padding:16px;background:#f6f8fa'>
       <p>Surinkta: <strong style='color:#1a7f37'>{len(surinkti)}</strong> | Perduota: <strong style='color:#0969da'>{len(perduoti)}</strong> | Laukia: <strong style='color:#9a6700'>{len(laukia)}</strong></p>
       <h3 style='color:#1a7f37'>Surinkta ({len(surinkti)})</h3>
-      <table width='100%' style='border-collapse:collapse;background:white'><tr><th style='text-align:left;padding:4px 8px;background:#e6f4ea'>Kodas</th><th style='text-align:left;padding:4px 8px;background:#e6f4ea'>Etapas</th></tr>{rows(surinkti,'#1a7f37')}</table>
+      <table width='100%' style='border-collapse:collapse;background:white'>{rows(surinkti,'#1a7f37')}</table>
       <h3 style='color:#0969da'>Perduota ({len(perduoti)})</h3>
-      <table width='100%' style='border-collapse:collapse;background:white'><tr><th style='text-align:left;padding:4px 8px;background:#ddf4ff'>Kodas</th><th style='text-align:left;padding:4px 8px;background:#ddf4ff'>Etapas</th></tr>{rows(perduoti,'#0969da')}</table>
+      <table width='100%' style='border-collapse:collapse;background:white'>{rows(perduoti,'#0969da')}</table>
       <h3 style='color:#9a6700'>Laukia ({len(laukia)})</h3>
-      <table width='100%' style='border-collapse:collapse;background:white'><tr><th style='text-align:left;padding:4px 8px;background:#fff8c5'>Kodas</th><th style='text-align:left;padding:4px 8px;background:#fff8c5'>Etapas</th></tr>{rows(laukia,'#9a6700')}</table>
+      <table width='100%' style='border-collapse:collapse;background:white'>{rows(laukia,'#9a6700')}</table>
     </div></body></html>"""
     try:
         msg = MIMEMultipart("alternative")
@@ -366,107 +423,7 @@ async def siusti_email(db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(500, f"Klaida: {str(e)}")
 
-# ════ LIKUČIAI API ════
-
-@app.get("/api/likuciai")
-def get_likuciai(db: Session = Depends(get_db)):
-    items = db.query(Likutis).order_by(Likutis.storis, Likutis.prideta.desc()).all()
-    return {"likuciai": [_lik(l) for l in items]}
-
-@app.post("/api/likuciai")
-def add_likutis(data: dict, db: Session = Depends(get_db)):
-    import time
-    storis = float(data["storis"])
-    plotis = float(data["plotis"])
-    ilgis = float(data["ilgis"])
-    barcode = f"LIK-{int(storis)}mm-{int(plotis)}x{int(ilgis)}-{int(time.time())}"
-    svoris = round((plotis/1000) * (ilgis/1000) * (storis/1000) * 8000, 2)
-    l = Likutis(barcode=barcode, storis=storis, matmenys=f"{int(plotis)}x{int(ilgis)}",
-                plotis=plotis, ilgis=ilgis, svoris=svoris)
-    db.add(l); db.commit()
-    return {"success": True, "barcode": barcode, "svoris": svoris}
-
-@app.post("/api/likuciai/scan")
-def scan_likutis(data: dict, db: Session = Depends(get_db)):
-    barcode = data.get("barcode", "").strip()
-    l = db.query(Likutis).filter(Likutis.barcode == barcode).first()
-    if not l:
-        return {"notFound": True}
-    if l.sunaudota:
-        return {"jauSunaudota": True, "barcode": barcode}
-    l.sunaudota = True
-    l.sunaudota_kada = datetime.utcnow()
-    db.commit()
-    return {"success": True, "barcode": barcode, "storis": l.storis, "matmenys": l.matmenys}
-
-@app.delete("/api/likuciai/{barcode}")
-def delete_likutis(barcode: str, db: Session = Depends(get_db)):
-    l = db.query(Likutis).filter(Likutis.barcode == barcode).first()
-    if not l: raise HTTPException(404)
-    db.delete(l); db.commit()
-    return {"success": True}
-
-# ════ LAZERIS API ════
-
-LAZERIS_DEFAULT = [
-    {"tipas": "galvute", "dydis": "0.8",  "pavadinimas": "Galvutė 0.8mm"},
-    {"tipas": "galvute", "dydis": "1.0",  "pavadinimas": "Galvutė 1.0mm"},
-    {"tipas": "galvute", "dydis": "1.2",  "pavadinimas": "Galvutė 1.2mm"},
-    {"tipas": "galvute", "dydis": "1.4",  "pavadinimas": "Galvutė 1.4mm"},
-    {"tipas": "galvute", "dydis": "1.6",  "pavadinimas": "Galvutė 1.6mm"},
-    {"tipas": "galvute", "dydis": "2.0",  "pavadinimas": "Galvutė 2.0mm"},
-    {"tipas": "galvute", "dydis": "2.5",  "pavadinimas": "Galvutė 2.5mm"},
-    {"tipas": "galvute", "dydis": "3.0",  "pavadinimas": "Galvutė 3.0mm"},
-    {"tipas": "lesis",   "dydis": "std",  "pavadinimas": "Lešis"},
-]
-
-def _init_lazeris(db: Session):
-    for p in LAZERIS_DEFAULT:
-        pid = f"LAZ-{p['tipas']}-{p['dydis']}"
-        if not db.query(LazerisPreke).filter(LazerisPreke.preke_id == pid).first():
-            db.add(LazerisPreke(preke_id=pid, tipas=p["tipas"], dydis=p["dydis"],
-                                pavadinimas=p["pavadinimas"], kiekis=0, min_kiekis=2))
-    db.commit()
-
-@app.get("/api/lazeris")
-def get_lazeris(db: Session = Depends(get_db)):
-    _init_lazeris(db)
-    prekes = db.query(LazerisPreke).order_by(LazerisPreke.tipas, LazerisPreke.dydis).all()
-    return {"prekes": [_laz(p) for p in prekes]}
-
-@app.post("/api/lazeris/scan")
-def lazeris_scan(data: dict, db: Session = Depends(get_db)):
-    pid = data.get("preke_id", "").strip()
-    p = db.query(LazerisPreke).filter(LazerisPreke.preke_id == pid).first()
-    if not p: return {"notFound": True}
-    if p.kiekis <= 0: return {"tusti": True, "pavadinimas": p.pavadinimas, "kiekis": 0}
-    p.kiekis -= 1
-    db.add(LazerisIstorijia(preke_id=pid, veiksmas="paimta", kiekis=1, likutis=p.kiekis))
-    db.commit()
-    return {"success": True, "pavadinimas": p.pavadinimas, "kiekis": p.kiekis, "mazas": p.kiekis <= p.min_kiekis}
-
-@app.put("/api/lazeris/{preke_id}/kiekis")
-def update_lazeris_kiekis(preke_id: str, data: dict, db: Session = Depends(get_db)):
-    p = db.query(LazerisPreke).filter(LazerisPreke.preke_id == preke_id).first()
-    if not p: raise HTTPException(404)
-    naujas = int(data.get("kiekis", 0))
-    skirt = abs(naujas - p.kiekis)
-    v = "prideta" if naujas > p.kiekis else "paimta"
-    p.kiekis = naujas
-    if skirt > 0:
-        db.add(LazerisIstorijia(preke_id=preke_id, veiksmas=v, kiekis=skirt, likutis=naujas))
-    db.commit()
-    return _laz(p)
-
-@app.put("/api/lazeris/{preke_id}/min")
-def update_lazeris_min(preke_id: str, data: dict, db: Session = Depends(get_db)):
-    p = db.query(LazerisPreke).filter(LazerisPreke.preke_id == preke_id).first()
-    if not p: raise HTTPException(404)
-    p.min_kiekis = int(data.get("min_kiekis", 2))
-    db.commit()
-    return _laz(p)
-
-# ════ PAGALBINES FUNKCIJOS ════
+# ════ PAGALBINĖS FUNKCIJOS ════
 
 def _lk(l):
     return {"kodas": l.kodas,
@@ -497,13 +454,6 @@ def _stk(s):
             "prideta": s.prideta.strftime("%Y-%m-%d %H:%M:%S") if s.prideta else "",
             "pastabos": s.pastabos or ""}
 
-def _lik(l):
-    return {"barcode": l.barcode, "storis": l.storis, "matmenys": l.matmenys,
-            "plotis": l.plotis, "ilgis": l.ilgis, "svoris": l.svoris,
-            "sunaudota": l.sunaudota,
-            "sunaudotaKada": l.sunaudota_kada.strftime("%Y-%m-%d %H:%M") if l.sunaudota_kada else "",
-            "prideta": l.prideta.strftime("%Y-%m-%d %H:%M") if l.prideta else ""}
-
 def _laz(p):
     return {"prekeId": p.preke_id, "tipas": p.tipas, "dydis": p.dydis,
             "pavadinimas": p.pavadinimas, "kiekis": p.kiekis,
@@ -520,66 +470,3 @@ def _recalc(uzs_id, db):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
-
-
-# ════ AUTH ════
-# Slaptažodžiai saugomi atmintyje — keičiami per API
-# Paleidus iš naujo grįžta į numatytuosius (arba iš env)
-_auth = {
-    "admin_pass": os.getenv("ADMIN_PASS", "admin123"),
-    "worker_pin": os.getenv("WORKER_PIN", "1234"),
-}
-_TOKENS = {}  # token -> {"role": ..., "vardas": ...}
-
-@app.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
-
-@app.post("/api/auth/login")
-def auth_login(data: dict):
-    import secrets
-    slaptazodis = data.get("slaptazodis", "")
-    pin = data.get("pin", "")
-    # Admin prisijungimas su slaptažodžiu
-    if slaptazodis and slaptazodis == _auth["admin_pass"]:
-        token = secrets.token_hex(16)
-        _TOKENS[token] = {"role": "admin", "vardas": "Admin"}
-        return {"token": token, "role": "admin", "vardas": "Admin"}
-    # Darbuotojas prisijungia su PIN
-    if pin and pin == _auth["worker_pin"]:
-        token = secrets.token_hex(16)
-        _TOKENS[token] = {"role": "darbuotojas", "vardas": "Darbuotojas"}
-        return {"token": token, "role": "darbuotojas", "vardas": "Darbuotojas"}
-    return {"klaida": "Neteisingas slaptažodis arba PIN"}
-
-@app.get("/api/auth/me")
-def auth_me(token: str = ""):
-    if token in _TOKENS:
-        u = _TOKENS[token]
-        return {"ok": True, "role": u["role"], "vardas": u["vardas"]}
-    raise HTTPException(401, "Neprisijungęs")
-
-@app.post("/api/auth/logout")
-def auth_logout(data: dict):
-    _TOKENS.pop(data.get("token", ""), None)
-    return {"ok": True}
-
-@app.put("/api/auth/slaptazodis")
-def change_pass(data: dict):
-    # Patikrina seną slaptažodį prieš keičiant
-    senas = data.get("senas", "")
-    naujas = data.get("slaptazodis", "")
-    if not naujas:
-        raise HTTPException(400, "Nenurodytas naujas slaptažodis")
-    if senas and senas != _auth["admin_pass"]:
-        raise HTTPException(403, "Neteisingas dabartinis slaptažodis")
-    _auth["admin_pass"] = naujas
-    return {"ok": True}
-
-@app.put("/api/auth/pin")
-def change_pin(data: dict):
-    naujas = data.get("pin", "")
-    if not naujas:
-        raise HTTPException(400, "Nenurodytas naujas PIN")
-    _auth["worker_pin"] = naujas
-    return {"ok": True}
