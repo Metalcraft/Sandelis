@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Optional
 import os
 
-from database import get_db, init_db, Lakstai, AktyvusEtapas, Etapas, Uzsakymas, Detale, Sandelis, SandelioIstorijia, Likutis, LazerisPreke, LazerisIstorijia
+from database import get_db, init_db, Lakstai, AktyvusEtapas, Etapas, Uzsakymas, Detale, Sandelis, SandelioIstorijia
 
 app = FastAPI(title="Sandelio Sistema")
 TANKIS = 8000
