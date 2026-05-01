@@ -68,6 +68,22 @@ async function api(method, url, data) {
 
 // ════ INIT ════
 window.onload = async () => {
+  // Sukurti nurasymo modalą dinamiškai
+  if (!document.getElementById('nurasymoModal')) {
+    const mo = document.createElement('div');
+    mo.id = 'nurasymoModal';
+    mo.className = 'mbg';
+    mo.style.cssText = 'display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;';
+    mo.innerHTML = '<div style="background:var(--bg);border-radius:16px;padding:24px;max-width:480px;width:95%;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.3)">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
+      +'<h3 style="margin:0;font-size:16px">🔩 Nurašyti metalą iš sandėlio</h3>'
+      +'<button onclick="CM('nurasymoModal')" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--tx2)">✕</button></div>'
+      +'<div id="nurasymoBody"></div>'
+      +'<div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">'
+      +'<button class="btn" onclick="CM('nurasymoModal')">Praleisti</button>'
+      +'<button class="btn btn-p" onclick="darytiNurasyma()">✓ Nurašyti</button></div></div>';
+    document.body.appendChild(mo);
+  }
   await checkAuth();
   const saved = localStorage.getItem('sandSettings');
   if (saved) try { settings = JSON.parse(saved); } catch(e) {}
@@ -678,7 +694,82 @@ async function openOrd(id) {
   SW('dv'); await loadDets();
 }
 function back2Ords() { SW('dxf'); loadDxfOrds(); curArea=0; curContour=''; curDimW=0; curDimH=0; document.getElementById('pForm').style.display='none'; document.getElementById('cvW').style.display='none'; document.getElementById('dxfFile').value=''; }
-async function chSt() { if(!curOrd) return; await api('PUT','/api/uzsakymai/'+curOrd.id+'/statusas',{statusas:document.getElementById('dvSt').value}); toast('Atnaujinta'); }
+async function chSt() {
+  if(!curOrd) return;
+  const newSt = document.getElementById('dvSt').value;
+  await api('PUT','/api/uzsakymai/'+curOrd.id+'/statusas',{statusas:newSt});
+  const buvo = curOrd.statusas;
+  curOrd.statusas = newSt;
+  toast('Atnaujinta');
+  if(newSt === 'Baigtas' && buvo !== 'Baigtas') {
+    await showNurasymoPopup();
+  }
+}
+
+// ════ METALO NURAŠYMAS IŠ SANDĖLIO ════
+async function showNurasymoPopup() {
+  if(!curOrd || !dxfDets.length) return;
+  const storiai = [...new Set(dxfDets.map(d=>d.storis))];
+  let stk = [];
+  try { const r = await api('GET','/api/sandelis'); stk = r.stock||[]; } catch(e){}
+  const svoriai = {};
+  storiai.forEach(st => {
+    svoriai[st] = Math.round(dxfDets.filter(d=>d.storis===st).reduce((s,d)=>s+d.svoris,0)*1000)/1000;
+  });
+  const match = stk.filter(s => storiai.includes(s.storis));
+  if(!match.length) { toast('Sandėlyje nerasta atitinkančio storio lakštų', true); return; }
+  const body = document.getElementById('nurasymoBody');
+  let html = '<div style="margin-bottom:12px;padding:10px;background:var(--s2);border-radius:8px;">'
+    +'<strong>'+curOrd.klientas+'</strong><br>'
+    +storiai.map(st=>'<span style="font-family:monospace">'+st+'mm → <strong>'+svoriai[st]+' kg</strong></span>').join('<br>')
+    +'</div><div style="margin-bottom:8px;font-weight:700;color:var(--tx2)">Pasirinkite lakštą nurašymui:</div>';
+  storiai.forEach(st => {
+    const matching = match.filter(s=>s.storis===st);
+    const reikia = svoriai[st];
+    if(!matching.length) { html+='<div style="padding:8px;color:var(--rd);margin-bottom:6px">⚠ '+st+'mm lakštų sandėlyje nėra</div>'; return; }
+    html+='<div style="font-size:11px;color:var(--tx3);margin-bottom:4px">'+st+'mm (reikia <strong>'+reikia+' kg</strong>):</div>';
+    matching.forEach(s => {
+      const truksta = s.likoKg < reikia;
+      html+='<label style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;cursor:pointer;margin-bottom:6px;border:2px solid '+(truksta?'var(--rd)':'var(--bd)')+';background:var(--bg)">'
+        +'<input type="radio" name="nurStk_'+st+'" value="'+s.id+'" data-kg="'+reikia+'" style="width:18px;height:18px">'
+        +'<div><div style="font-weight:700;font-family:monospace">'+s.storis+'mm '+s.matmenys+'</div>'
+        +'<div style="font-size:12px;color:'+(truksta?'var(--rd)':'var(--gn)')+'">Likutis: '+s.likoKg.toFixed(1)+' kg'
+        +(truksta?' ⚠ trūksta '+(reikia-s.likoKg).toFixed(1)+' kg':'')+'</div></div></label>';
+    });
+  });
+  body.innerHTML = html;
+  document.getElementById('nurasymoModal').style.display='flex';
+}
+
+async function darytiNurasyma() {
+  const radios = document.querySelectorAll('#nurasymoBody input[type=radio]:checked');
+  if(!radios.length) { toast('Pasirinkite lakštą!', true); return; }
+  const pastabos = 'DXF: '+curOrd.id+' '+curOrd.klientas;
+  const atlikti = [];
+  for(const r of radios) {
+    const kg = parseFloat(r.dataset.kg), id = r.value;
+    const res = await api('POST','/api/sandelis/'+id+'/naudoti_kg',{kg, pastabos});
+    if(res.success) atlikti.push({id, kg});
+    else { toast('Klaida nurašant!', true); return; }
+  }
+  CM('nurasymoModal');
+  await loadStock();
+  const el = document.getElementById('toast');
+  const atsaukJson = JSON.stringify(atlikti).replace(/'/g,"\\'");
+  el.innerHTML = '✓ Metalo nurašyta. <button onclick="atsauktiNurasyma(\''+atsaukJson+'\')" style="background:rgba(255,255,255,.2);border:none;color:inherit;padding:2px 8px;border-radius:4px;cursor:pointer;margin-left:6px">↩ Atšaukti</button>';
+  el.className = 'toast show';
+  clearTimeout(el._t);
+  el._t = setTimeout(()=>{ el.classList.remove('show'); el.textContent=''; }, 15000);
+}
+
+async function atsauktiNurasyma(json) {
+  const atlikti = JSON.parse(json);
+  for(const {id,kg} of atlikti) {
+    await api('POST','/api/sandelis/'+id+'/grazinti_kg',{kg, pastabos:'Atšaukta: '+curOrd.id});
+  }
+  await loadStock();
+  toast('↩ Nurašymas atšauktas');
+}
 async function delOrd() { if(!curOrd) return; if(!confirm('Istrinti "'+curOrd.klientas+'"?')) return; await api('DELETE','/api/uzsakymai/'+curOrd.id); toast('Istrinta'); back2Ords(); }
 async function loadDets() {
   if(!curOrd) return;
