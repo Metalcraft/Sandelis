@@ -10,7 +10,7 @@ import os
 from database import get_db, init_db, Lakstai, AktyvusEtapas, Etapas, Uzsakymas, Detale, Sandelis, SandelioIstorijia, LazerisPreke, LazerisIstorijia
 
 app = FastAPI(title="Sandelio Sistema")
-TANKIS = 8000
+TANKIS = 7850
 
 import pathlib
 pathlib.Path("static/css").mkdir(parents=True, exist_ok=True)
