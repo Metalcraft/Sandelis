@@ -5,7 +5,7 @@ let curEtapas = null;
 let lkOrders = [];
 let lkF = 'all';
 let etapai = [];
-let dxfOrders = [], dxfDets = [], curOrd = null, curArea = 0, curContour = '';
+let dxfOrders = [], dxfDets = [], curOrd = null, curArea = 0, curContour = '', curDimW = 0, curDimH = 0;
 let stock = [], history = [], lkLC = null, lkLT = 0;
 let settings = {defaultPrice: 0, lowAlert: 2, dxfKaina: 1.45};
 
@@ -677,7 +677,7 @@ async function openOrd(id) {
   document.getElementById('dvMeta').textContent=(o.sukurta||'').slice(0,16)+(o.pastabos?' - '+o.pastabos:'');
   SW('dv'); await loadDets();
 }
-function back2Ords() { SW('dxf'); loadDxfOrds(); curArea=0; curContour=''; document.getElementById('pForm').style.display='none'; document.getElementById('cvW').style.display='none'; document.getElementById('dxfFile').value=''; }
+function back2Ords() { SW('dxf'); loadDxfOrds(); curArea=0; curContour=''; curDimW=0; curDimH=0; document.getElementById('pForm').style.display='none'; document.getElementById('cvW').style.display='none'; document.getElementById('dxfFile').value=''; }
 async function chSt() { if(!curOrd) return; await api('PUT','/api/uzsakymai/'+curOrd.id+'/statusas',{statusas:document.getElementById('dvSt').value}); toast('Atnaujinta'); }
 async function delOrd() { if(!curOrd) return; if(!confirm('Istrinti "'+curOrd.klientas+'"?')) return; await api('DELETE','/api/uzsakymai/'+curOrd.id); toast('Istrinta'); back2Ords(); }
 async function loadDets() {
@@ -784,7 +784,8 @@ async function handleMultiDxf(files) {
           const at=thickFromName(file.name)||defThick;
           const aq=qtyFromName(file.name)||defQty;
           const ctour=serializeContour(res.entities,res.dimW,res.dimH);
-          const resp=await api('POST','/api/detales',{uzsakymoId:curOrd.id,pavadinimas:file.name.replace(/[.]dxf$/i,''),storis:at,plotas:res.areaCm2,kiekis:aq,konturas:ctour});
+          const bbPlot=Math.round(res.dimW*res.dimH)/100;
+          const resp=await api('POST','/api/detales',{uzsakymoId:curOrd.id,pavadinimas:file.name.replace(/[.]dxf$/i,''),storis:at,plotas:bbPlot,kiekis:aq,konturas:ctour});
           if(resp.success)ok++;else fail++;
         }catch(ex){fail++;}
         resolve();
@@ -801,7 +802,7 @@ function procDxf(file) {
   r.onload=e=>{
     try{
       const res=pDxf(e.target.result);
-      curArea=res.areaCm2; curContour=serializeContour(res.entities,res.dimW,res.dimH);
+      curArea=res.areaCm2; curDimW=res.dimW; curDimH=res.dimH; curContour=serializeContour(res.entities,res.dimW,res.dimH);
       document.getElementById('dName').value=file.name.replace(/[.]dxf$/i,'');
       const at=thickFromName(file.name); const aq=qtyFromName(file.name);
       if(at){document.getElementById('dThk').value=at;localStorage.setItem('lastThick',String(at));}
@@ -813,11 +814,11 @@ function procDxf(file) {
   };
   r.readAsText(file);
 }
-function rcW(){const t=parseFloat(document.getElementById('dThk').value)||3,q=parseInt(document.getElementById('dQty').value)||1,w=curArea*(t/10)*(TANKIS/1000)*q/1000;document.getElementById('wPv').textContent=w.toFixed(3);document.getElementById('wAr').textContent='Plotas: '+curArea.toFixed(2)+'cm2 x '+t+'mm x '+q+'vnt.';}
+function rcW(){const t=parseFloat(document.getElementById('dThk').value)||3,q=parseInt(document.getElementById('dQty').value)||1,bb=curDimW&&curDimH?Math.round(curDimW*curDimH)/100:curArea,w=bb*(t/10)*(TANKIS/1000)*q/1000;document.getElementById('wPv').textContent=w.toFixed(3);document.getElementById('wAr').textContent='BBox: '+curDimW+'x'+curDimH+'mm ('+bb.toFixed(2)+'cm²) x '+t+'mm x '+q+'vnt.';}
 function rcM(){const t=parseFloat(document.getElementById('mThk').value)||3,a=parseFloat(document.getElementById('mArea').value)||0,q=parseInt(document.getElementById('mQty').value)||1;document.getElementById('mWp').textContent=(a*(t/10)*(TANKIS/1000)*q/1000).toFixed(3)+' kg';}
 async function addDet(){
   if(!curOrd) return; if(curArea<=0){toast('Plotas=0',true);return;}
-  const r=await api('POST','/api/detales',{uzsakymoId:curOrd.id,pavadinimas:document.getElementById('dName').value.trim()||'Detale',storis:parseFloat(document.getElementById('dThk').value),plotas:curArea,kiekis:parseInt(document.getElementById('dQty').value)||1,konturas:curContour,kaina_kg:settings.dxfKaina||1.45});
+  const r=await api('POST','/api/detales',{uzsakymoId:curOrd.id,pavadinimas:document.getElementById('dName').value.trim()||'Detale',storis:parseFloat(document.getElementById('dThk').value),plotas:curDimW&&curDimH?Math.round(curDimW*curDimH)/100:curArea,kiekis:parseInt(document.getElementById('dQty').value)||1,konturas:curContour,kaina_kg:settings.dxfKaina||1.45});
   if(r.success){document.getElementById('pForm').style.display='none';document.getElementById('cvW').style.display='none';document.getElementById('dxfFile').value='';curArea=0;curContour='';await loadDets();toast('Detale: '+r.svoris.toFixed(3)+'kg');}
 }
 async function addMDet(){
