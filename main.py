@@ -453,7 +453,7 @@ def _recalc(uzs_id, db):
 @app.get("/api/lazeris")
 def get_lazeris(db: Session = Depends(get_db)):
     prekes = db.query(LazerisPreke).order_by(LazerisPreke.tipas, LazerisPreke.dydis).all()
-    return {"prekes": [{"id": p.preke_id, "tipas": p.tipas, "dydis": p.dydis,
+    return {"prekes": [{"id": p.preke_id, "prekeId": p.preke_id, "tipas": p.tipas, "dydis": p.dydis,
                         "pavadinimas": p.pavadinimas, "kiekis": p.kiekis,
                         "minKiekis": p.min_kiekis} for p in prekes]}
 
