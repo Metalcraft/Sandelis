@@ -18,55 +18,153 @@ function qtyFromName(name){
 function pDxf(txt){
   const lines=txt.split(/\r?\n/);
   const segs=[];
-  let inE=false,curType=null,curV={},sf=1;
+  let sf=1;
 
   for(let j=0;j<lines.length-1;j++){
     if(lines[j].trim()==='70'&&j>=2&&lines[j-2].trim()==='$INSUNITS'){
-      const u=parseInt(lines[j+1]);if(u===1)sf=25.4;else if(u===6)sf=10;else if(u===5)sf=.1;
+      const u=parseInt(lines[j+1]);
+      if(u===1)sf=25.4;else if(u===4)sf=1;else if(u===5)sf=10;else if(u===6)sf=1000;else if(u===2)sf=304.8;
     }
   }
 
   const r4=v=>Math.round(v*10000)/10000;
 
-  function saveSeg(t,v){
-    if(t==='LINE'&&v._x1!==undefined&&v._y1!==undefined&&v._x2!==undefined&&v._y2!==undefined){
-      segs.push({type:'L',x1:r4(v._x1*sf),y1:r4(v._y1*sf),x2:r4(v._x2*sf),y2:r4(v._y2*sf)});
-    } else if(t==='CIRCLE'&&v._x1!==undefined&&v._y1!==undefined&&40 in v){
-      segs.push({type:'C',cx:r4(v._x1*sf),cy:r4(v._y1*sf),r:r4(v[40]*sf)});
-    } else if((t==='LWPOLYLINE'||t==='POLYLINE')&&v._xs&&v._xs.length>=3){
-      segs.push({type:'P',pts:v._xs.map((x,i)=>({x:r4(x*sf),y:r4((v._ys[i]||0)*sf)})),closed:((v[70]||0)&1)===1});
-    } else if(t==='ARC'&&v._x1!==undefined&&v._y1!==undefined&&40 in v){
-      segs.push({type:'C',cx:r4(v._x1*sf),cy:r4(v._y1*sf),r:r4(v[40]*sf),arc:true});
+  function pushSeg(t,v,ox,oy,scx,scy,ang){
+    const c=Math.cos(ang),s=Math.sin(ang);
+    function tx(x,y){return r4((ox+scx*(x*c-y*s))*sf);}
+    function ty(x,y){return r4((oy+scy*(x*s+y*c))*sf);}
+    function tr(r){return r4(Math.abs(scx)*r*sf);}
+    if(t==='LINE'&&v._x1!==undefined&&v._x2!==undefined){
+      segs.push({type:'L',x1:tx(v._x1,v._y1),y1:ty(v._x1,v._y1),x2:tx(v._x2,v._y2),y2:ty(v._x2,v._y2)});
+    }else if(t==='CIRCLE'&&v._x1!==undefined&&40 in v){
+      segs.push({type:'C',cx:tx(v._x1,v._y1),cy:ty(v._x1,v._y1),r:tr(v[40])});
+    }else if((t==='LWPOLYLINE'||t==='POLYLINE')&&v._xs&&v._xs.length>=3){
+      segs.push({type:'P',pts:v._xs.map((x,i)=>({x:tx(x,v._ys[i]||0),y:ty(x,v._ys[i]||0)})),closed:((v[70]||0)&1)===1});
+    }else if(t==='ARC'&&v._x1!==undefined&&40 in v){
+      segs.push({type:'C',cx:tx(v._x1,v._y1),cy:ty(v._x1,v._y1),r:tr(v[40]),arc:true});
     }
   }
+
+  // --- 1 praejimas: BLOCKS sekcija ---
+  const blockDefs={};
+  let inSection=false,sectionName='',inBlock=false,curBlockName=null,curBlockEnts=null;
+  let curType=null,curV={};
 
   let i=0;
   while(i<lines.length){
     const code=parseInt(lines[i].trim());
-    if(isNaN(code)){i++;continue;}
+    if(isNaN(code)){i+=2;continue;}
     const val=(lines[i+1]||'').trim();
-    if(code===2&&val==='ENTITIES'){inE=true;i+=2;continue;}
-    if(code===0&&val==='ENDSEC'&&inE){saveSeg(curType,curV);break;}
-    if(!inE){i+=2;continue;}
-    if(code===0){saveSeg(curType,curV);curType=val;curV={};}
-    else{
+
+    if(code===0&&val==='SECTION'){inSection=true;i+=2;continue;}
+    if(code===2&&inSection&&!inBlock){sectionName=val;i+=2;continue;}
+    if(code===0&&val==='ENDSEC'){
+      if(inBlock&&curBlockEnts)curBlockEnts.push({type:curType,v:curV});
+      inSection=false;inBlock=false;curBlockName=null;curBlockEnts=null;curType=null;curV={};
+      i+=2;continue;
+    }
+
+    if(sectionName!=='BLOCKS'){i+=2;continue;}
+
+    if(code===0&&val==='BLOCK'){
+      if(inBlock&&curBlockEnts)curBlockEnts.push({type:curType,v:curV});
+      inBlock=true;curBlockName=null;curBlockEnts=[];curType=null;curV={};
+      i+=2;continue;
+    }
+    if(code===0&&val==='ENDBLK'){
+      if(inBlock&&curBlockEnts)curBlockEnts.push({type:curType,v:curV});
+      if(curBlockName)blockDefs[curBlockName]=curBlockEnts||[];
+      inBlock=false;curBlockName=null;curBlockEnts=null;curType=null;curV={};
+      i+=2;continue;
+    }
+
+    if(!inBlock){i+=2;continue;}
+
+    if(code===2&&curBlockName===null){curBlockName=val;i+=2;continue;}
+
+    if(code===0){
+      if(curBlockEnts)curBlockEnts.push({type:curType,v:curV});
+      curType=val;curV={};
+    }else{
       const n=parseFloat(val);
       if(!isNaN(n)){
         if(code===10){
-          if(curType==='LINE'||curType==='CIRCLE'||curType==='ARC'){curV._x1=n;}
+          if(curType==='LINE'||curType==='CIRCLE'||curType==='ARC'||curType==='INSERT')curV._x1=n;
           else{if(!curV._xs)curV._xs=[];curV._xs.push(n);}
         }else if(code===20){
-          if(curType==='LINE'||curType==='CIRCLE'||curType==='ARC'){curV._y1=n;}
+          if(curType==='LINE'||curType==='CIRCLE'||curType==='ARC'||curType==='INSERT')curV._y1=n;
           else{if(!curV._ys)curV._ys=[];curV._ys.push(n);}
-        }else if(code===11){curV._x2=n;}
-        else if(code===21){curV._y2=n;}
-        else if(code===70){curV[70]=parseInt(val)||0;}
-        else{curV[code]=n;}
+        }else if(code===11)curV._x2=n;
+        else if(code===21)curV._y2=n;
+        else if(code===70)curV[70]=parseInt(val)||0;
+        else curV[code]=n;
+      }else if(code===2&&curType==='INSERT'){
+        curV._bname=val;
       }
     }
     i+=2;
   }
 
+  // --- Bloko geometrijos iskleidimas ---
+  function expandBlock(ents,ox,oy,scx,scy,ang){
+    for(const e of ents){
+      if(!e||!e.type)continue;
+      if(e.type==='INSERT'&&e.v._bname&&blockDefs[e.v._bname]){
+        const iox=e.v._x1||0,ioy=e.v._y1||0;
+        const iscx=e.v[41]||1,iscy=e.v[42]||1;
+        const iang=(e.v[50]||0)*Math.PI/180;
+        const c2=Math.cos(ang),s2=Math.sin(ang);
+        const nox=ox+scx*(iox*c2-ioy*s2);
+        const noy=oy+scy*(iox*s2+ioy*c2);
+        expandBlock(blockDefs[e.v._bname],nox,noy,scx*iscx,scy*iscy,ang+iang);
+      }else{
+        pushSeg(e.type,e.v,ox,oy,scx,scy,ang);
+      }
+    }
+  }
+
+  // --- 2 praejimas: ENTITIES sekcija ---
+  let inE=false;
+  curType=null;curV={};
+  i=0;
+  while(i<lines.length){
+    const code=parseInt(lines[i].trim());
+    if(isNaN(code)){i+=2;continue;}
+    const val=(lines[i+1]||'').trim();
+    if(code===2&&val==='ENTITIES'){inE=true;i+=2;continue;}
+    if(code===0&&val==='ENDSEC'&&inE){
+      if(curType==='INSERT'&&curV._bname&&blockDefs[curV._bname])
+        expandBlock(blockDefs[curV._bname],curV._x1||0,curV._y1||0,curV[41]||1,curV[42]||1,(curV[50]||0)*Math.PI/180);
+      else pushSeg(curType,curV,0,0,1,1,0);
+      break;
+    }
+    if(!inE){i+=2;continue;}
+    if(code===0){
+      if(curType==='INSERT'&&curV._bname&&blockDefs[curV._bname])
+        expandBlock(blockDefs[curV._bname],curV._x1||0,curV._y1||0,curV[41]||1,curV[42]||1,(curV[50]||0)*Math.PI/180);
+      else pushSeg(curType,curV,0,0,1,1,0);
+      curType=val;curV={};
+    }else{
+      const n=parseFloat(val);
+      if(!isNaN(n)){
+        if(code===10){
+          if(curType==='LINE'||curType==='CIRCLE'||curType==='ARC'||curType==='INSERT')curV._x1=n;
+          else{if(!curV._xs)curV._xs=[];curV._xs.push(n);}
+        }else if(code===20){
+          if(curType==='LINE'||curType==='CIRCLE'||curType==='ARC'||curType==='INSERT')curV._y1=n;
+          else{if(!curV._ys)curV._ys=[];curV._ys.push(n);}
+        }else if(code===11)curV._x2=n;
+        else if(code===21)curV._y2=n;
+        else if(code===70)curV[70]=parseInt(val)||0;
+        else curV[code]=n;
+      }else if(code===2&&curType==='INSERT'){
+        curV._bname=val;
+      }
+    }
+    i+=2;
+  }
+
+  // --- Ploto skaiciavimas ---
   let area=0;
   segs.filter(s=>s.type==='C'&&!s.arc).forEach(s=>area+=Math.PI*s.r*s.r);
   segs.filter(s=>s.type==='P').forEach(s=>{
@@ -107,7 +205,7 @@ function pDxf(txt){
     });
   }
 
-  // Matmenys
+  // --- Matmenys ---
   let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
   segs.forEach(s=>{
     if(s.type==='C'){minX=Math.min(minX,s.cx-s.r);maxX=Math.max(maxX,s.cx+s.r);minY=Math.min(minY,s.cy-s.r);maxY=Math.max(maxY,s.cy+s.r);}
