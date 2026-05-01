@@ -477,6 +477,22 @@ def update_lazeris_preke(preke_id: str, data: dict, db: Session = Depends(get_db
     db.commit()
     return {"success": True}
 
+@app.put("/api/lazeris/{preke_id}/kiekis")
+def update_lazeris_kiekis(preke_id: str, data: dict, db: Session = Depends(get_db)):
+    p = db.query(LazerisPreke).filter(LazerisPreke.preke_id == preke_id).first()
+    if not p: raise HTTPException(404)
+    p.kiekis = int(data.get("kiekis", p.kiekis))
+    db.commit()
+    return {"success": True}
+
+@app.put("/api/lazeris/{preke_id}/min")
+def update_lazeris_min(preke_id: str, data: dict, db: Session = Depends(get_db)):
+    p = db.query(LazerisPreke).filter(LazerisPreke.preke_id == preke_id).first()
+    if not p: raise HTTPException(404)
+    p.min_kiekis = int(data.get("min_kiekis", p.min_kiekis))
+    db.commit()
+    return {"success": True}
+
 @app.post("/api/lazeris/preke/{preke_id}/paimti")
 def paimti_lazeris(preke_id: str, data: dict, db: Session = Depends(get_db)):
     p = db.query(LazerisPreke).filter(LazerisPreke.preke_id == preke_id).first()
