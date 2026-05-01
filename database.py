@@ -68,6 +68,7 @@ class Detale(Base):
     plotas = Column(Float)
     kiekis = Column(Integer, default=1)
     svoris = Column(Float)
+    kaina_kg = Column(Float, default=1.55)
     konturas = Column(Text, nullable=True)
     prideta = Column(DateTime, default=datetime.utcnow)
     uzsakymas = relationship("Uzsakymas", back_populates="detales")
