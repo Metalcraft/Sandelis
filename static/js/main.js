@@ -74,14 +74,16 @@ window.onload = async () => {
     mo.id = 'nurasymoModal';
     mo.className = 'mbg';
     mo.style.cssText = 'display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;';
-    mo.innerHTML = '<div style="background:var(--bg);border-radius:16px;padding:24px;max-width:480px;width:95%;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.3)">'
-      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
-      +'<h3 style="margin:0;font-size:16px">🔩 Nurašyti metalą iš sandėlio</h3>'
-      +'<button onclick="CM('nurasymoModal')" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--tx2)">✕</button></div>'
-      +'<div id="nurasymoBody"></div>'
-      +'<div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">'
-      +'<button class="btn" onclick="CM('nurasymoModal')">Praleisti</button>'
-      +'<button class="btn btn-p" onclick="darytiNurasyma()">✓ Nurašyti</button></div></div>';
+    mo.innerHTML = `<div style="background:var(--bg);border-radius:16px;padding:24px;max-width:480px;width:95%;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.3)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="margin:0;font-size:16px">🔩 Nurašyti metalą iš sandėlio</h3>
+        <button onclick="CM('nurasymoModal')" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--tx2)">✕</button>
+      </div>
+      <div id="nurasymoBody"></div>
+      <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
+        <button class="btn" onclick="CM('nurasymoModal')">Praleisti</button>
+        <button class="btn btn-p" onclick="darytiNurasyma()">✓ Nurašyti</button>
+      </div></div>`;
     document.body.appendChild(mo);
   }
   await checkAuth();
