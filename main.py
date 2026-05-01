@@ -10,7 +10,7 @@ import os
 from database import get_db, init_db, Lakstai, AktyvusEtapas, Etapas, Uzsakymas, Detale, Sandelis, SandelioIstorijia, LazerisPreke, LazerisIstorijia
 
 app = FastAPI(title="Sandelio Sistema")
-TANKIS = 7850
+TANKIS = 8000
 
 import pathlib
 pathlib.Path("static/css").mkdir(parents=True, exist_ok=True)
@@ -219,9 +219,10 @@ def get_detales(uzs_id: str, db: Session = Depends(get_db)):
 def add_detale(data: dict, db: Session = Depends(get_db)):
     det_id = "DET-" + str(int(datetime.utcnow().timestamp() * 1000))
     storis = float(data.get("storis", 0)); plotas = float(data.get("plotas", 0)); kiekis = int(data.get("kiekis", 1))
+    kaina_kg = float(data.get("kaina_kg", 1.55))
     svoris = round(plotas * (storis/10) * (TANKIS/1000) * kiekis / 1000, 3)
     db.add(Detale(det_id=det_id, uzsakymo_id=data["uzsakymoId"], pavadinimas=data.get("pavadinimas","Detale"),
-                  storis=storis, plotas=plotas, kiekis=kiekis, svoris=svoris, konturas=data.get("konturas","")))
+                  storis=storis, plotas=plotas, kiekis=kiekis, svoris=svoris, kaina_kg=kaina_kg, konturas=data.get("konturas","")))
     db.commit(); _recalc(data["uzsakymoId"], db)
     return {"success": True, "detId": det_id, "svoris": svoris}
 
@@ -231,6 +232,8 @@ def update_detale(det_id: str, data: dict, db: Session = Depends(get_db)):
     if not d: raise HTTPException(404)
     if "storis" in data: d.storis = float(data["storis"])
     if "kiekis" in data: d.kiekis = int(data["kiekis"])
+    if "kaina_kg" in data: d.kaina_kg = float(data["kaina_kg"])
+    if "plotas" in data: d.plotas = float(data["plotas"])
     d.svoris = float(data["svoris"]) if "svoris" in data else round(d.plotas*(d.storis/10)*(TANKIS/1000)*d.kiekis/1000, 3)
     db.commit(); _recalc(d.uzsakymo_id, db)
     return {"success": True, "svoris": d.svoris}
@@ -450,8 +453,11 @@ def _uzs(u):
             "sukurta": u.sukurta.strftime("%Y-%m-%d %H:%M:%S") if u.sukurta else ""}
 
 def _det(d):
+    kkg = d.kaina_kg or 1.55
+    suma = round(d.svoris * kkg, 2) if d.svoris else 0
     return {"detId": d.det_id, "uzsakymoId": d.uzsakymo_id, "pavadinimas": d.pavadinimas,
             "storis": d.storis, "plotas": d.plotas, "kiekis": d.kiekis, "svoris": d.svoris,
+            "kainaKg": kkg, "suma": suma,
             "konturas": d.konturas or "",
             "prideta": d.prideta.strftime("%Y-%m-%d %H:%M:%S") if d.prideta else ""}
 
