@@ -274,6 +274,44 @@ def naudoti(stk_id: str, data: dict, db: Session = Depends(get_db)):
     db.add(hist); db.commit()
     return {"success": True, "likoVnt": s.liko_vnt, "likoKg": s.liko_kg}
 
+@app.post("/api/sandelis/{stk_id}/naudoti_kg")
+def naudoti_kg(stk_id: str, data: dict, db: Session = Depends(get_db)):
+    s = db.query(Sandelis).filter(Sandelis.stk_id == stk_id).first()
+    if not s: raise HTTPException(404)
+    kg = float(data.get("kg", 0))
+    if kg <= 0: raise HTTPException(400, "Kiekis turi būti > 0")
+    truksta = kg > s.liko_kg
+    s.liko_kg = max(0, round(s.liko_kg - kg, 3))
+    s.liko_t = round(s.liko_kg / 1000, 3)
+    if s.svoris_vnt and s.svoris_vnt > 0:
+        s.liko_vnt = max(0, int(s.liko_kg / s.svoris_vnt))
+    s.verte = round(s.liko_t * s.kaina_kg, 2)
+    hist = SandelioIstorijia(
+        veiksmas="Sunaudota (DXF)", storis=s.storis, matmenys=s.matmenys,
+        kiekis=0, svoris_vnt=s.svoris_vnt, svoris_is_viso=round(kg, 3),
+        kaina_kg=s.kaina_kg, verte=round((kg/1000)*s.kaina_kg, 2),
+        pastabos=data.get("pastabos", ""))
+    db.add(hist); db.commit()
+    return {"success": True, "likoVnt": s.liko_vnt, "likoKg": s.liko_kg, "truksta": truksta}
+
+@app.post("/api/sandelis/{stk_id}/grazinti_kg")
+def grazinti_kg(stk_id: str, data: dict, db: Session = Depends(get_db)):
+    s = db.query(Sandelis).filter(Sandelis.stk_id == stk_id).first()
+    if not s: raise HTTPException(404)
+    kg = float(data.get("kg", 0))
+    s.liko_kg = round(s.liko_kg + kg, 3)
+    s.liko_t = round(s.liko_kg / 1000, 3)
+    if s.svoris_vnt and s.svoris_vnt > 0:
+        s.liko_vnt = min(s.gauta_vnt, int(s.liko_kg / s.svoris_vnt))
+    s.verte = round(s.liko_t * s.kaina_kg, 2)
+    hist = SandelioIstorijia(
+        veiksmas="Grąžinta (DXF)", storis=s.storis, matmenys=s.matmenys,
+        kiekis=0, svoris_vnt=s.svoris_vnt, svoris_is_viso=round(kg, 3),
+        kaina_kg=s.kaina_kg, verte=round((kg/1000)*s.kaina_kg, 2),
+        pastabos=data.get("pastabos", ""))
+    db.add(hist); db.commit()
+    return {"success": True, "likoVnt": s.liko_vnt, "likoKg": s.liko_kg}
+
 @app.delete("/api/sandelis/{stk_id}")
 def delete_stk(stk_id: str, db: Session = Depends(get_db)):
     s = db.query(Sandelis).filter(Sandelis.stk_id == stk_id).first()
