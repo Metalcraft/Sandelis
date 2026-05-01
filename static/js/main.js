@@ -68,7 +68,41 @@ async function api(method, url, data) {
 
 // ════ INIT ════
 window.onload = async () => {
-  // Sukurti nurasymo modalą dinamiškai
+  // Sukurti modalus dinamiškai
+  if (!document.getElementById('lazKiekModal')) {
+    const m = document.createElement('div');
+    m.id = 'lazKiekModal';
+    m.className = 'mbg';
+    m.style.cssText = 'display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;';
+    m.innerHTML = `<div style="background:var(--bg);border-radius:16px;padding:24px;max-width:340px;width:95%;box-shadow:0 8px 32px rgba(0,0,0,.3)">
+      <h3 id="lazKiekTitle" style="margin:0 0 16px;font-size:16px"></h3>
+      <input type="hidden" id="lazKiekId">
+      <label style="font-size:11px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em">Kiekis</label>
+      <input id="lazKiekVal" type="number" min="0" style="width:100%;padding:8px;border:1px solid var(--bd);border-radius:6px;font-size:18px;text-align:center;margin:4px 0 12px;box-sizing:border-box">
+      <label style="font-size:11px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em">Min. perspėjimas</label>
+      <input id="lazKiekMin" type="number" min="0" style="width:100%;padding:8px;border:1px solid var(--bd);border-radius:6px;font-size:16px;text-align:center;margin:4px 0 16px;box-sizing:border-box">
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn" onclick="CM('lazKiekModal')">Atšaukti</button>
+        <button class="btn btn-p" onclick="lazSaveKiekis()">Išsaugoti</button>
+      </div></div>`;
+    document.body.appendChild(m);
+  }
+
+  if (!document.getElementById('lazQrModal')) {
+    const m2 = document.createElement('div');
+    m2.id = 'lazQrModal';
+    m2.className = 'mbg';
+    m2.style.cssText = 'display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;';
+    m2.innerHTML = `<div style="background:var(--bg);border-radius:16px;padding:24px;max-width:320px;width:95%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.3)">
+      <h3 id="lazQrTitle" style="margin:0 0 16px;font-size:16px"></h3>
+      <div id="lazQrCode" style="font-family:monospace;font-size:12px;margin-bottom:12px"></div>
+      <svg id="lazQrSvg" style="max-width:200px;width:100%"></svg>
+      <div style="margin-top:16px">
+        <button class="btn" onclick="CM('lazQrModal')">Uždaryti</button>
+      </div></div>`;
+    document.body.appendChild(m2);
+  }
+
   if (!document.getElementById('nurasymoModal')) {
     const mo = document.createElement('div');
     mo.id = 'nurasymoModal';
